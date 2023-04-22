@@ -3,7 +3,7 @@ import {initializeApp} from "firebase/app";
 import {getAnalytics} from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import {collection, doc, getDoc, getFirestore} from "firebase/firestore";
+import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, signInWithPopup} from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -26,31 +26,49 @@ const analytics = getAnalytics(app);
 const provider = new GoogleAuthProvider();
 const auth = getAuth();
 
+// Initialize Functions
+const functions = getFunctions();
+
+/**
+ * Sign in with Google, updates the UI, and queries the target of the current user.
+ */
 document.getElementById("signIn").onclick = function signIn() {
     signInWithPopup(auth, provider).then(result => {
-        const user = result.user;
         const name = result.user.displayName;
-        const email = result.user.email;
         document.getElementById("name").innerHTML += name;
         document.getElementById("signIn").style.visibility = "hidden";
         document.getElementById("name").style.visibility = "visible";
         document.getElementById("alive").style.visibility = "visible";
         document.getElementById("target").style.visibility = "visible";
+        queryAndHandleTarget();
     });
 }
 
-// Initialize Firestore
-const database = getFirestore();
-const gamesCollection = collection(database, 'games');
-const gameDoc = doc(gamesCollection, "test-game-01");
+/**
+ * Queries the target of the current user and updates the UI.
+ */
+function queryAndHandleTarget() {
+    const queryTarget = httpsCallable(functions, "queryTarget");
+    queryTarget().then(result => {
+        if (result === null || result.data === null) {
+            console.log("query target result is null");
+            return;
+        }
+        // @ts-ignore
+        handleTarget(result.data.email, result.data.targetEmail, result.data.alive, result.data.targetName)
+    }).catch(error => {
+        console.log(error);
+    });
+}
 
-getDoc(gameDoc).then(snapshot => {
-    const player = snapshot.data().players["test1@example.com"];
-    const name = player.name;
-    const alive = player.alive;
-    const targetEmail = player.targetEmail;
-    document.getElementById("alive").innerHTML += alive ? "alive" : "unalive";
-    document.getElementById("target").innerHTML += name;
-}).catch(error => {
-    console.log(error);
-});
+function handleTarget(email: string, targetEmail: string, alive: boolean, targetName: string) {
+    if (email === targetEmail) {
+        document.getElementById("alive").innerHTML = "Congrats!"
+        document.getElementById("target").innerHTML = "You are the last player alive.";
+    } else {
+        // @ts-ignore
+        document.getElementById("alive").innerHTML += alive ? "alive" : "unalive";
+        // @ts-ignore
+        document.getElementById("target").innerHTML += targetName;
+    }
+}
