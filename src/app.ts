@@ -3,7 +3,7 @@ import {initializeApp} from "firebase/app";
 import {getAnalytics} from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
+import {getFunctions, httpsCallable} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, signInWithPopup} from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -27,7 +27,7 @@ const provider = new GoogleAuthProvider();
 const auth = getAuth();
 
 // Initialize Functions
-const functions = getFunctions();
+const functions = getFunctions(app);
 
 /**
  * Sign in with Google, updates the UI, and queries the target of the current user.
@@ -54,6 +54,7 @@ function queryAndHandleTarget() {
             console.log("query target result is null");
             return;
         }
+        console.log("received query target result: ", result.data);
         // @ts-ignore
         handleTarget(result.data.email, result.data.targetEmail, result.data.alive, result.data.targetName)
     }).catch(error => {
@@ -66,9 +67,11 @@ function handleTarget(email: string, targetEmail: string, alive: boolean, target
         document.getElementById("alive").innerHTML = "Congrats!"
         document.getElementById("target").innerHTML = "You are the last player alive.";
     } else {
-        // @ts-ignore
-        document.getElementById("alive").innerHTML += alive ? "alive" : "unalive";
-        // @ts-ignore
-        document.getElementById("target").innerHTML += targetName;
+        document.getElementById("alive").innerHTML += alive ? "alive" : "out";
+        if (alive) {
+            document.getElementById("target").innerHTML += targetName;
+        } else {
+            document.getElementById("target").innerHTML = "Thanks for playing!";
+        }
     }
 }
