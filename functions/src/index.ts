@@ -1,6 +1,8 @@
 /* eslint-disable max-len */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+import {FieldPath} from "firebase-admin/firestore";
+import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
 const game = "test-game-01";
 
@@ -19,44 +21,95 @@ const firebaseConfig = {
 // Initialize Firebase
 admin.initializeApp(firebaseConfig);
 
+/**
+ * Gets the target of the current user and calls resolve.
+ * @param {CallableContext} context
+ * @param {Object} resolve
+ * @param {Object} reject
+ * @return {void}
+ */
+function getTarget(context: CallableContext, resolve: (value: {
+    email: string,
+    name: string,
+    alive: boolean,
+    targetEmail: string,
+    targetName: string
+}) => void, reject: (value: unknown) => void) {
+  const firestore = admin.firestore();
+  const gamesCollection = firestore.collection("games");
+  const gameDoc = gamesCollection.doc(game);
+  gameDoc.get().then((snapshot) => {
+    const email = context.auth?.token.email;
+    if (email === undefined) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+    }
+    const players = snapshot.data()?.players;
+    const player = players[email];
+    let target = players[player.targetEmail];
+    let targetEmail = player.targetEmail;
+    // Loop until the target is alive
+    while (!target.alive) {
+      // Break the loop if the target is the player
+      targetEmail = target.targetEmail;
+      target = players[targetEmail];
+      if (targetEmail === email) {
+        break;
+      }
+    }
+
+    resolve({
+      email: email,
+      name: player.name,
+      alive: player.alive,
+      targetEmail: targetEmail,
+      targetName: target.name,
+    });
+  }).catch((error) => {
+    functions.logger.log(error);
+    reject(null);
+  });
+}
+
+/**
+ * Eliminates the target of the current user and calls resolve with the new target.
+ * @param {CallableContext} context
+ * @param {Object} resolve
+ * @param {Object} reject
+ * @return {void}
+ */
+function eliminateTarget(context: CallableContext, resolve: (value: {
+    email: string,
+    name: string,
+    alive: boolean,
+    targetEmail: string,
+    targetName: string
+}) => void, reject: (value: unknown) => void) {
+  getTarget(context, (result: { targetEmail: string }) => {
+    const firestore = admin.firestore();
+    const gamesCollection = firestore.collection("games");
+    const gameDoc = gamesCollection.doc(game);
+    gameDoc.update(new FieldPath("players", result.targetEmail, "alive"), false).then(() => {
+      getTarget(context, resolve, reject);
+    });
+  }, reject);
+}
+
 exports.queryTarget = functions.https.onCall((data, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
     }
 
-    const firestore = admin.firestore();
-    const gamesCollection = firestore.collection("games");
-    const gameDoc = gamesCollection.doc(game);
-    return gameDoc.get().then((snapshot) => {
-      const email = context.auth?.token.email;
-      if (email === undefined) {
-        throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
-      }
-      const players = snapshot.data()?.players;
-      const player = players[email];
-      let target = players[player.targetEmail];
-      let targetEmail = player.targetEmail;
-      // Loop until the target is alive
-      while (!target.alive) {
-        // Break the loop if the target is the player
-        targetEmail = target.targetEmail;
-        target = players[targetEmail];
-        if (targetEmail === email) {
-          break;
-        }
-      }
+    getTarget(context, resolve, reject);
+  });
+});
 
-      resolve({
-        email: email,
-        name: player.name,
-        alive: player.alive,
-        targetEmail: targetEmail,
-        targetName: target.name,
-      });
-    }).catch((error) => {
-      functions.logger.log(error);
-      resolve(null);
-    });
+exports.eliminateTarget = functions.https.onCall((data, context) => {
+  return new Promise((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    }
+
+    eliminateTarget(context, resolve, reject);
   });
 });
