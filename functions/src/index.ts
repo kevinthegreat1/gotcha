@@ -5,6 +5,7 @@ import {FieldPath} from "firebase-admin/firestore";
 import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
 const game = "test-game-01";
+const round = 1;
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -36,22 +37,22 @@ function getTarget(context: CallableContext, resolve: (value: {
     targetName: string
 }) => void, reject: (value: unknown) => void) {
   const firestore = admin.firestore();
-  const gamesCollection = firestore.collection("games");
-  const gameDoc = gamesCollection.doc(game);
-  gameDoc.get().then((snapshot) => {
+  const gameCollection = firestore.collection(game);
+  const roundDoc = gameCollection.doc("round" + round);
+  roundDoc.get().then((snapshot) => {
     const email = context.auth?.token.email;
     if (email === undefined) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
     }
-    const players = snapshot.data()?.players;
-    const player = players[email];
-    let target = players[player.targetEmail];
+    const game = snapshot.data()?.game;
+    const player = game[email];
+    let target = game[player.targetEmail];
     let targetEmail = player.targetEmail;
     // Loop until the target is alive
     while (!target.alive) {
       // Break the loop if the target is the player
       targetEmail = target.targetEmail;
-      target = players[targetEmail];
+      target = game[targetEmail];
       if (targetEmail === email) {
         break;
       }
@@ -86,9 +87,9 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
 }) => void, reject: (value: unknown) => void) {
   getTarget(context, (result: { targetEmail: string }) => {
     const firestore = admin.firestore();
-    const gamesCollection = firestore.collection("games");
-    const gameDoc = gamesCollection.doc(game);
-    gameDoc.update(new FieldPath("players", result.targetEmail, "alive"), false).then(() => {
+    const gameCollection = firestore.collection(game);
+    const roundDoc = gameCollection.doc("round" + round);
+    roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
       getTarget(context, resolve, reject);
     });
   }, reject);

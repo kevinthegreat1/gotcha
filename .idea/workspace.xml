@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Updated target handling">
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added eliminate function">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/app.bundle.js" beforeDir="false" afterPath="$PROJECT_DIR$/dist/app.bundle.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/functions/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/functions/src/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -110,7 +106,8 @@
       <workItem from="1682088006012" duration="10816000" />
       <workItem from="1682112673592" duration="7887000" />
       <workItem from="1682196649687" duration="2356000" />
-      <workItem from="1682215165898" duration="6011000" />
+      <workItem from="1682215165898" duration="7017000" />
+      <workItem from="1682779400884" duration="719000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -154,7 +151,14 @@
       <option name="project" value="LOCAL" />
       <updated>1682199938342</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="Added eliminate function">
+      <created>1682221374730</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1682221374730</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -177,7 +181,8 @@
     <MESSAGE value="Added auth" />
     <MESSAGE value="Added cloud function firebase query" />
     <MESSAGE value="Updated target handling" />
-    <option name="LAST_COMMIT_MESSAGE" value="Updated target handling" />
+    <MESSAGE value="Added eliminate function" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added eliminate function" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
