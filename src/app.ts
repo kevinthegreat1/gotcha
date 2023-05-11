@@ -40,6 +40,10 @@ document.getElementById("signIn").onclick = () => {
         document.getElementById("name").style.visibility = "visible";
         document.getElementById("alive").style.visibility = "visible";
         document.getElementById("target").style.visibility = "visible";
+        // @ts-ignore
+        for (let adminElement of document.getElementsByClassName("admin")) {
+            adminElement.style.visibility = "visible";
+        }
         queryAndHandleTarget();
     });
 }

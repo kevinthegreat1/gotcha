@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Fixed firebase hosting directory">
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Fixed front end handleTarget JSDoc">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dist/app.bundle.js" beforeDir="false" afterPath="$PROJECT_DIR$/dist/app.bundle.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/app.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.ts" afterDir="false" />
     </list>
@@ -63,7 +64,7 @@
       <recent name="$PROJECT_DIR$/dist" />
     </key>
   </component>
-  <component name="RunManager" selected="npm.deploy">
+  <component name="RunManager" selected="npm.build">
     <configuration name="build" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
       <package-json value="$PROJECT_DIR$/package.json" />
       <command value="run" />
@@ -96,8 +97,8 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="npm.deploy" />
         <item itemvalue="npm.build" />
+        <item itemvalue="npm.deploy" />
         <item itemvalue="npm.serve" />
       </list>
     </recent_temporary>
@@ -126,7 +127,7 @@
       <workItem from="1683776249128" duration="802000" />
       <workItem from="1683815459189" duration="625000" />
       <workItem from="1683837755916" duration="51000" />
-      <workItem from="1683837819315" duration="1075000" />
+      <workItem from="1683837819315" duration="2412000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -205,7 +206,14 @@
       <option name="project" value="LOCAL" />
       <updated>1683816298229</updated>
     </task>
-    <option name="localTasksCounter" value="12" />
+    <task id="LOCAL-00012" summary="Fixed front end handleTarget JSDoc">
+      <created>1683838958292</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1683838958292</updated>
+    </task>
+    <option name="localTasksCounter" value="13" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -232,7 +240,8 @@
     <MESSAGE value="Added round support and refactored data model" />
     <MESSAGE value="Added time limit to github workflows" />
     <MESSAGE value="Fixed firebase hosting directory" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fixed firebase hosting directory" />
+    <MESSAGE value="Fixed front end handleTarget JSDoc" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixed front end handleTarget JSDoc" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
