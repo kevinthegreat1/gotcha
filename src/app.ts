@@ -91,7 +91,7 @@ function eliminateAndHandleTarget() {
 }
 
 /**
- * Updates the UI based.
+ * Updates the UI based on the given parameters.
  */
 function handleTarget(email: string, targetEmail: string, alive: boolean, targetName: string) {
     if (email === targetEmail) {
