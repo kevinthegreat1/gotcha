@@ -4,9 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added round support and refactored data model">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-    </list>
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added time limit to github workflows" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -121,6 +119,7 @@
       <workItem from="1682779400884" duration="719000" />
       <workItem from="1683747423085" duration="2859000" />
       <workItem from="1683750952827" duration="149000" />
+      <workItem from="1683776249128" duration="802000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -178,7 +177,21 @@
       <option name="project" value="LOCAL" />
       <updated>1683748660909</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="Added time limit to github workflows">
+      <created>1683776331180</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1683776331180</updated>
+    </task>
+    <task id="LOCAL-00010" summary="Added time limit to github workflows">
+      <created>1683776431306</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1683776431306</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -203,7 +216,8 @@
     <MESSAGE value="Updated target handling" />
     <MESSAGE value="Added eliminate function" />
     <MESSAGE value="Added round support and refactored data model" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added round support and refactored data model" />
+    <MESSAGE value="Added time limit to github workflows" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added time limit to github workflows" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
