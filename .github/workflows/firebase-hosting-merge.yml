@@ -18,3 +18,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_GOTCHA_GAME }}'
           channelId: live
           projectId: gotcha-game
+    timeout-minutes: 1

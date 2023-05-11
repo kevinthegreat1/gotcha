@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added eliminate function">
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added round support and refactored data model">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -62,6 +62,16 @@
     </key>
   </component>
   <component name="RunManager" selected="npm.deploy">
+    <configuration name="build" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
+      <package-json value="$PROJECT_DIR$/package.json" />
+      <command value="run" />
+      <scripts>
+        <script value="build" />
+      </scripts>
+      <node-interpreter value="project" />
+      <envs />
+      <method v="2" />
+    </configuration>
     <configuration name="deploy" type="js.build_tools.npm" temporary="true" nameIsGenerated="true">
       <package-json value="$PROJECT_DIR$/functions/package.json" />
       <command value="run" />
@@ -85,6 +95,7 @@
     <recent_temporary>
       <list>
         <item itemvalue="npm.deploy" />
+        <item itemvalue="npm.build" />
         <item itemvalue="npm.serve" />
       </list>
     </recent_temporary>
@@ -108,6 +119,8 @@
       <workItem from="1682196649687" duration="2356000" />
       <workItem from="1682215165898" duration="7017000" />
       <workItem from="1682779400884" duration="719000" />
+      <workItem from="1683747423085" duration="2859000" />
+      <workItem from="1683750952827" duration="149000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -158,7 +171,14 @@
       <option name="project" value="LOCAL" />
       <updated>1682221374730</updated>
     </task>
-    <option name="localTasksCounter" value="8" />
+    <task id="LOCAL-00008" summary="Added round support and refactored data model">
+      <created>1683748660909</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1683748660909</updated>
+    </task>
+    <option name="localTasksCounter" value="9" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -182,7 +202,8 @@
     <MESSAGE value="Added cloud function firebase query" />
     <MESSAGE value="Updated target handling" />
     <MESSAGE value="Added eliminate function" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added eliminate function" />
+    <MESSAGE value="Added round support and refactored data model" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added round support and refactored data model" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
