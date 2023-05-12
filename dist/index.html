@@ -16,8 +16,12 @@
 <hr class="divider admin" style="visibility:hidden">
 <button id="newRound" class="admin" style="visibility:hidden">New Round</button>
 <hr class="divider admin" style="visibility:hidden">
-<div id="emailsField" class="admin" style="visibility:hidden" contentEditable>Enter emails here<br>with one on each line</div>
-<button id="newGame" class="admin" style="visibility:hidden">New Game</button>
+<h2 id="newGame" class="admin" style="visibility:hidden">Start a new game</h2>
+<form id="newGameForm" class="admin" style="visibility:hidden">
+    <label for="emailsField">Enter emails here with one entry per line</label><br>
+    <textarea id="emailsField" class="admin"></textarea><br>
+    <button id="submit" class="admin">New Game</button>
+</form>
 
 <script src="app.bundle.js"></script>
 </body>
