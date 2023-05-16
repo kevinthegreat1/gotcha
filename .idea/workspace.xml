@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added admin claims check">
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Rearranged functions order">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/functions/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/functions/src/index.ts" afterDir="false" />
     </list>
@@ -128,7 +128,7 @@
       <workItem from="1683837819315" duration="2668000" />
       <workItem from="1683915836123" duration="3397000" />
       <workItem from="1684194102477" duration="438000" />
-      <workItem from="1684198875963" duration="1651000" />
+      <workItem from="1684198875963" duration="6324000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -228,7 +228,14 @@
       <option name="project" value="LOCAL" />
       <updated>1683918949510</updated>
     </task>
-    <option name="localTasksCounter" value="15" />
+    <task id="LOCAL-00015" summary="Rearranged functions order">
+      <created>1684200596742</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1684200596742</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -258,7 +265,8 @@
     <MESSAGE value="Fixed front end handleTarget JSDoc" />
     <MESSAGE value="Added admin panel front end" />
     <MESSAGE value="Added admin claims check" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added admin claims check" />
+    <MESSAGE value="Rearranged functions order" />
+    <option name="LAST_COMMIT_MESSAGE" value="Rearranged functions order" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

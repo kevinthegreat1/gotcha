@@ -4,8 +4,8 @@ import * as admin from "firebase-admin";
 import {FieldPath} from "firebase-admin/firestore";
 import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
-const game = "test-game-01";
-const round = 1;
+let gameName = "test-game-01";
+let round = 1;
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -47,7 +47,7 @@ function getTarget(context: CallableContext, resolve: (value: {
     targetName: string
 }) => void, reject: (value: unknown) => void) {
   const firestore = admin.firestore();
-  const gameCollection = firestore.collection(game);
+  const gameCollection = firestore.collection(gameName);
   const roundDoc = gameCollection.doc("round" + round);
   roundDoc.get().then((snapshot) => {
     const email = context.auth?.token.email;
@@ -77,7 +77,7 @@ function getTarget(context: CallableContext, resolve: (value: {
     });
   }).catch((error) => {
     functions.logger.log(error);
-    reject(null);
+    reject(error);
   });
 }
 
@@ -107,10 +107,120 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
 }) => void, reject: (value: unknown) => void) {
   getTarget(context, (result: { targetEmail: string }) => {
     const firestore = admin.firestore();
-    const gameCollection = firestore.collection(game);
+    const gameCollection = firestore.collection(gameName);
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
       getTarget(context, resolve, reject);
     });
   }, reject);
+}
+
+exports.newRound = functions.https.onCall((data, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
+      }
+
+      newRound();
+      resolve();
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
+/**
+ * Creates a new round with the surviving players and increments {@link round}.
+ */
+function newRound() {
+  const firestore = admin.firestore();
+  const gameCollection = firestore.collection(gameName);
+  const roundDoc = gameCollection.doc("round" + round);
+  roundDoc.get().then((snapshot) => {
+    const emails: string[] = snapshot.data()?.emails;
+    const newEmails: string[] = [];
+    for (const email of emails) {
+      if (snapshot.data()?.game[email].alive) {
+        newEmails.push(email);
+      }
+    }
+    round++;
+    createNewRound(newEmails, snapshot.data()?.game);
+  });
+}
+
+exports.newGame = functions.https.onCall((data, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
+      }
+
+      newGame(data);
+      resolve();
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
+/**
+ * Creates a new game with the given emails and names. Updates {@link gameName} and sets {@link round} to 1.
+ * @param {string[]} emailsAndNames the emails and names of the players
+ */
+function newGame(emailsAndNames: string[]) {
+  const emails: string[] = [];
+  const names: {[key: string]: {name: string}} = {};
+  for (const emailAndName of emailsAndNames) {
+    const emailAndNameArray = emailAndName.split(",");
+    const email = emailAndNameArray[0];
+    const name = emailAndNameArray[1];
+    emails.push(email);
+    names[email] = {name: name};
+  }
+  gameName = "game" + Date.now();
+  round = 1;
+  createNewRound(emails, names);
+}
+
+/**
+ * Creates a new round with the given emails and names with {@link gameName} and {@link round}.
+ * @param {string[]} emails the emails of the players
+ * @param {Object.<string, {name: string}>} names the names of the players
+ */
+function createNewRound(emails: string[], names: {[key: string]: {name: string}}) {
+  const firestore = admin.firestore();
+  const gameCollection = firestore.collection(gameName);
+  const roundDoc = gameCollection.doc("round" + round);
+  roundDoc.set({emails: emails});
+  shuffleArray(emails);
+  const game: {[key: string]: {alive: boolean, name: string, targetEmail: string}} = {};
+  for (let i = 0; i < emails.length; i++) {
+    const email = emails[i];
+    const targetEmail = emails[(i + 1) % emails.length];
+    game[email] = {alive: true, name: names[email].name, targetEmail: targetEmail};
+  }
+  roundDoc.update({game: game});
+}
+
+/**
+ * Shuffles array in place using the Durstenfeld shuffle algorithm.
+ * @param {[]} array the array to shuffle.
+ */
+function shuffleArray(array: unknown[]) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
 }
