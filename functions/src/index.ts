@@ -224,7 +224,6 @@ async function createNewRound(round: number, emails: string[], names: { [key: st
   const firestore = admin.firestore();
   const gameCollection = firestore.collection(gameName);
   const roundDoc = gameCollection.doc("round" + round);
-  const newRoundEmailsWrite = roundDoc.set({emails: emails});
   shuffleArray(emails);
   const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};
   for (let i = 0; i < emails.length; i++) {
@@ -232,9 +231,7 @@ async function createNewRound(round: number, emails: string[], names: { [key: st
     const targetEmail = emails[(i + 1) % emails.length];
     game[email] = {alive: true, name: names[email].name, targetEmail: targetEmail};
   }
-  const newRoundGameWrite = roundDoc.update({game: game});
-  await newRoundEmailsWrite;
-  await newRoundGameWrite;
+  await roundDoc.set({emails: emails, game: game});
 }
 
 /**
