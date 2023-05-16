@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added admin panel front end">
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Added admin claims check">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/app.bundle.js" beforeDir="false" afterPath="$PROJECT_DIR$/dist/app.bundle.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/functions/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/functions/src/index.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -128,7 +126,9 @@
       <workItem from="1683815459189" duration="625000" />
       <workItem from="1683837755916" duration="51000" />
       <workItem from="1683837819315" duration="2668000" />
-      <workItem from="1683915836123" duration="3045000" />
+      <workItem from="1683915836123" duration="3397000" />
+      <workItem from="1684194102477" duration="438000" />
+      <workItem from="1684198875963" duration="1651000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -221,7 +221,14 @@
       <option name="project" value="LOCAL" />
       <updated>1683840491176</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="Added admin claims check">
+      <created>1683918949510</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1683918949510</updated>
+    </task>
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -250,7 +257,8 @@
     <MESSAGE value="Fixed firebase hosting directory" />
     <MESSAGE value="Fixed front end handleTarget JSDoc" />
     <MESSAGE value="Added admin panel front end" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added admin panel front end" />
+    <MESSAGE value="Added admin claims check" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added admin claims check" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />

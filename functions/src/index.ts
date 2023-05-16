@@ -22,6 +22,16 @@ const firebaseConfig = {
 // Initialize Firebase
 admin.initializeApp(firebaseConfig);
 
+exports.queryTarget = functions.https.onCall((data, context) => {
+  return new Promise((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+    }
+
+    getTarget(context, resolve, reject);
+  });
+});
+
 /**
  * Gets the target of the current user and calls resolve.
  * @param {CallableContext} context
@@ -71,6 +81,16 @@ function getTarget(context: CallableContext, resolve: (value: {
   });
 }
 
+exports.eliminateTarget = functions.https.onCall((data, context) => {
+  return new Promise((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    }
+
+    eliminateTarget(context, resolve, reject);
+  });
+});
+
 /**
  * Eliminates the target of the current user and calls resolve with the new target.
  * @param {CallableContext} context
@@ -94,23 +114,3 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
     });
   }, reject);
 }
-
-exports.queryTarget = functions.https.onCall((data, context) => {
-  return new Promise((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
-    }
-
-    getTarget(context, resolve, reject);
-  });
-});
-
-exports.eliminateTarget = functions.https.onCall((data, context) => {
-  return new Promise((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
-    }
-
-    eliminateTarget(context, resolve, reject);
-  });
-});
