@@ -3,7 +3,7 @@ import {initializeApp} from "firebase/app";
 import {getAnalytics} from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import {getFunctions, httpsCallable} from "firebase/functions";
+import {getFunctions, httpsCallable, connectFunctionsEmulator} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, signInWithPopup} from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -28,6 +28,7 @@ const auth = getAuth();
 
 // Initialize Functions
 const functions = getFunctions(app);
+connectFunctionsEmulator(functions, "localhost", 5001);
 
 /**
  * Sign in with Google, updates the UI, and queries the target of the current user.
@@ -37,14 +38,21 @@ document.getElementById("signIn").onclick = () => {
         const name = result.user.displayName;
         document.getElementById("name").innerHTML += name;
         document.getElementById("signIn").style.visibility = "hidden";
+        //@ts-ignore
+        for(const gameElement of document.getElementsByClassName("game")) {
+            gameElement.style.visibility = "visible";
+        }
         document.getElementById("name").style.visibility = "visible";
+        document.getElementById("round").style.visibility = "visible";
         document.getElementById("alive").style.visibility = "visible";
         document.getElementById("target").style.visibility = "visible";
         result.user.getIdTokenResult().then(idTokenResult => {
             if (idTokenResult.claims.admin) {
                 // @ts-ignore
-                for (let adminElement of document.getElementsByClassName("admin")) {
-                    adminElement.style.visibility = "visible";
+                for (const adminElement of document.getElementsByClassName("admin")) {
+                    if (!adminElement.id.startsWith("creating")) {
+                        adminElement.style.visibility = "visible";
+                    }
                 }
             }
         })
@@ -63,19 +71,33 @@ document.getElementById("eliminate").onclick = () => {
     }
 }
 
+document.getElementById("newRound").onclick = () => {
+    if (confirm("Are you sure you want to finish this round and start the next round?")) {
+        document.getElementById("newRound").style.visibility = "collapse";
+        document.getElementById("creatingNewRound").style.visibility = "visible";
+        const newRound = httpsCallable(functions, "newRound");
+        newRound().then(() => {
+            document.getElementById("newRound").style.visibility = "visible";
+            document.getElementById("creatingNewRound").style.visibility = "collapse";
+            queryAndHandleTarget();
+        });
+    }
+}
+
 /**
  * Queries the target of the current user and updates the UI.
  */
 function queryAndHandleTarget() {
     const queryTarget = httpsCallable(functions, "queryTarget");
-    queryTarget().then(result => {
+    queryTarget().then((result: {
+        data: { email: string, round: number, alive: boolean, targetEmail: string, targetName: string }
+    }) => {
         if (result === null || result.data === null) {
             console.log("query target result is null");
             return;
         }
         console.log("received query target result: ", result.data);
-        // @ts-ignore
-        handleTarget(result.data.email, result.data.targetEmail, result.data.alive, result.data.targetName)
+        handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName)
     }).catch(error => {
         console.log(error);
     });
@@ -86,14 +108,15 @@ function queryAndHandleTarget() {
  */
 function eliminateAndHandleTarget() {
     const eliminateTarget = httpsCallable(functions, "eliminateTarget");
-    eliminateTarget().then(result => {
+    eliminateTarget().then((result: {
+        data: { email: string, round: number, alive: boolean, targetEmail: string, targetName: string }
+    }) => {
         if (result === null || result.data === null) {
             console.log("query new target result is null");
             return;
         }
         console.log("received query new target result: ", result.data);
-        // @ts-ignore
-        handleTarget(result.data.email, result.data.targetEmail, result.data.alive, result.data.targetName);
+        handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName);
         document.getElementById("eliminating").style.visibility = "hidden";
     });
 }
@@ -101,16 +124,15 @@ function eliminateAndHandleTarget() {
 /**
  * Updates the UI based on the given parameters.
  */
-function handleTarget(email: string, targetEmail: string, alive: boolean, targetName: string) {
+function handleTarget(email: string, round: number, alive: boolean, targetEmail: string, targetName: string) {
+    document.getElementById("round").innerHTML = "Round #" + round;
     if (email === targetEmail) {
         document.getElementById("alive").innerHTML = "Congrats!"
         document.getElementById("target").innerHTML = "You are the last player alive.";
     } else {
-        document.getElementById("alive").innerHTML = "You are ";
-        document.getElementById("alive").innerHTML += alive ? "alive" : "out";
+        document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
         if (alive) {
-            document.getElementById("target").innerHTML = "Your target is ";
-            document.getElementById("target").innerHTML += targetName;
+            document.getElementById("target").innerHTML = "Your target is " + targetName;
             document.getElementById("eliminate").style.visibility = "visible";
         } else {
             document.getElementById("target").innerHTML = "Thanks for playing!";

@@ -7,14 +7,16 @@
 <body>
 <h1 style="text-align:center">Gotcha!</h1>
 <button id="signIn" style="text-align:center">Sign In</button>
-<h2 id="name" style="text-align:center; visibility:hidden">Hello </h2>
-<h2 id="alive" style="text-align:center; visibility:hidden">You are </h2>
-<h2 id="target" style="text-align:center; visibility:hidden">Your target is </h2>
+<h2 id="name" class="game" style="text-align:center; visibility:hidden">Hello </h2>
+<h2 id="round" class="game" style="text-align:center; visibility:hidden">Round #</h2>
+<h2 id="alive" class="game" style="text-align:center; visibility:hidden">You are </h2>
+<h2 id="target" class="game" style="text-align:center; visibility:hidden">Your target is </h2>
 <button id="eliminate" style="text-align:center; visibility:hidden">Eliminate Target</button>
 <h2 id="eliminating" style="text-align:center; visibility:hidden">Eliminating Target...</h2>
 
 <hr class="divider admin" style="visibility:hidden">
 <button id="newRound" class="admin" style="visibility:hidden">New Round</button>
+<h2 id="creatingNewRound" class="admin" style="visibility:collapse">Creating New Round...</h2>
 <hr class="divider admin" style="visibility:hidden">
 <h2 id="newGame" class="admin" style="visibility:hidden">Start a new game</h2>
 <form id="newGameForm" class="admin" style="visibility:hidden">
