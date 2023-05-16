@@ -27,7 +27,7 @@ admin.initializeApp(firebaseConfig);
  * @param {CollectionReference} gameCollection the game collection to read from
  * @return {Promise<number>} the round number
  */
-async function readRound(gameCollection: CollectionReference): Promise<number> {
+async function getRound(gameCollection: CollectionReference): Promise<number> {
   const snapshot = await gameCollection.doc(info).get();
   return snapshot.data()?.round;
 }
@@ -59,7 +59,7 @@ function getTarget(context: CallableContext, resolve: (value: {
 }) => void, reject: (value: unknown) => void) {
   const firestore = admin.firestore();
   const gameCollection = firestore.collection(gameName);
-  readRound(gameCollection).then((round) => {
+  getRound(gameCollection).then((round) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((snapshot) => {
       const email = context.auth?.token.email;
@@ -123,7 +123,7 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
   getTarget(context, (result: { targetEmail: string }) => {
     const firestore = admin.firestore();
     const gameCollection = firestore.collection(gameName);
-    readRound(gameCollection).then((round) => {
+    getRound(gameCollection).then((round) => {
       const roundDoc = gameCollection.doc("round" + round);
       roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
         getTarget(context, resolve, reject);
@@ -143,8 +143,7 @@ exports.newRound = functions.https.onCall((data, context) => {
         throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
       }
 
-      newRound();
-      resolve();
+      newRound(resolve);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -154,13 +153,14 @@ exports.newRound = functions.https.onCall((data, context) => {
 
 /**
  * Creates a new round with the surviving players and increments {@link round}.
+ * @param {function(void):void} resolve the function to call to resolve the promise
  */
-function newRound() {
+function newRound(resolve: () => void) {
   const firestore = admin.firestore();
   const gameCollection = firestore.collection(gameName);
-  readRound(gameCollection).then((round) => {
+  getRound(gameCollection).then((round) => {
     const roundDoc = gameCollection.doc("round" + round);
-    roundDoc.get().then((snapshot) => {
+    roundDoc.get().then(async (snapshot) => {
       const emails: string[] = snapshot.data()?.emails;
       const newEmails: string[] = [];
       for (const email of emails) {
@@ -168,9 +168,11 @@ function newRound() {
           newEmails.push(email);
         }
       }
-      gameCollection.doc(info).update({round: round + 1}).then(() => {
-        createNewRound(round + 1, newEmails, snapshot.data()?.game);
-      });
+      const newRoundNumberWrite = gameCollection.doc(info).update({round: round + 1});
+      const newRoundWrite = createNewRound(round + 1, newEmails, snapshot.data()?.game);
+      await newRoundNumberWrite;
+      await newRoundWrite;
+      resolve();
     });
   });
 }
@@ -186,8 +188,7 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
         throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
       }
 
-      newGame(data);
-      resolve();
+      newGame(data, resolve);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -198,8 +199,9 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
 /**
  * Creates a new game with the given emails and names. Updates {@link gameName} and sets round to 1.
  * @param {Object.<string, {name: string}>} emailsAndNames the emails and names of the players
+ * @param {function(void):void} resolve the function to call to resolve the promise
  */
-function newGame(emailsAndNames: { [key: string]: { name: string } }) {
+async function newGame(emailsAndNames: { [key: string]: { name: string } }, resolve: () => void) {
   const emails: string[] = [];
   const names: { [key: string]: { name: string } } = {};
   for (const [email, name] of Object.entries(emailsAndNames)) {
@@ -208,7 +210,8 @@ function newGame(emailsAndNames: { [key: string]: { name: string } }) {
   }
   gameName = "game" + Date.now();
   admin.firestore().collection(gameName).doc(info).update({round: 1});
-  createNewRound(1, emails, names);
+  await createNewRound(1, emails, names);
+  resolve();
 }
 
 /**
@@ -217,11 +220,11 @@ function newGame(emailsAndNames: { [key: string]: { name: string } }) {
  * @param {string[]} emails the emails of the players
  * @param {Object.<string, {name: string}>} names the names of the players
  */
-function createNewRound(round: number, emails: string[], names: { [key: string]: { name: string } }) {
+async function createNewRound(round: number, emails: string[], names: { [key: string]: { name: string } }) {
   const firestore = admin.firestore();
   const gameCollection = firestore.collection(gameName);
   const roundDoc = gameCollection.doc("round" + round);
-  roundDoc.set({emails: emails});
+  const newRoundEmailsWrite = roundDoc.set({emails: emails});
   shuffleArray(emails);
   const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};
   for (let i = 0; i < emails.length; i++) {
@@ -229,7 +232,9 @@ function createNewRound(round: number, emails: string[], names: { [key: string]:
     const targetEmail = emails[(i + 1) % emails.length];
     game[email] = {alive: true, name: names[email].name, targetEmail: targetEmail};
   }
-  roundDoc.update({game: game});
+  const newRoundGameWrite = roundDoc.update({game: game});
+  await newRoundEmailsWrite;
+  await newRoundGameWrite;
 }
 
 /**
