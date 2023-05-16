@@ -169,7 +169,7 @@ function newRound() {
         }
       }
       gameCollection.doc(info).update({round: round + 1}).then(() => {
-        createNewRound(newEmails, snapshot.data()?.game);
+        createNewRound(round + 1, newEmails, snapshot.data()?.game);
       });
     });
   });
@@ -196,7 +196,7 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
 });
 
 /**
- * Creates a new game with the given emails and names. Updates {@link gameName} and sets {@link round} to 1.
+ * Creates a new game with the given emails and names. Updates {@link gameName} and sets round to 1.
  * @param {Object.<string, {name: string}>} emailsAndNames the emails and names of the players
  */
 function newGame(emailsAndNames: { [key: string]: { name: string } }) {
@@ -208,29 +208,28 @@ function newGame(emailsAndNames: { [key: string]: { name: string } }) {
   }
   gameName = "game" + Date.now();
   admin.firestore().collection(gameName).doc(info).update({round: 1});
-  createNewRound(emails, names);
+  createNewRound(1, emails, names);
 }
 
 /**
- * Creates a new round with the given emails and names with {@link gameName} and {@link round}.
+ * Creates a new round with the given emails and names with {@link gameName} and the given round number.
+ * @param {number} round the round number
  * @param {string[]} emails the emails of the players
  * @param {Object.<string, {name: string}>} names the names of the players
  */
-function createNewRound(emails: string[], names: { [key: string]: { name: string } }) {
+function createNewRound(round: number, emails: string[], names: { [key: string]: { name: string } }) {
   const firestore = admin.firestore();
   const gameCollection = firestore.collection(gameName);
-  readRound(gameCollection).then((round) => {
-    const roundDoc = gameCollection.doc("round" + round);
-    roundDoc.set({emails: emails});
-    shuffleArray(emails);
-    const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};
-    for (let i = 0; i < emails.length; i++) {
-      const email = emails[i];
-      const targetEmail = emails[(i + 1) % emails.length];
-      game[email] = {alive: true, name: names[email].name, targetEmail: targetEmail};
-    }
-    roundDoc.update({game: game});
-  });
+  const roundDoc = gameCollection.doc("round" + round);
+  roundDoc.set({emails: emails});
+  shuffleArray(emails);
+  const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};
+  for (let i = 0; i < emails.length; i++) {
+    const email = emails[i];
+    const targetEmail = emails[(i + 1) % emails.length];
+    game[email] = {alive: true, name: names[email].name, targetEmail: targetEmail};
+  }
+  roundDoc.update({game: game});
 }
 
 /**
