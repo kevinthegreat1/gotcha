@@ -183,12 +183,13 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(context.auth?.uid).then(async (user) => {
       if (!user.customClaims?.admin) {
         throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
       }
 
-      newGame(data, resolve);
+      await newGame(data);
+      resolve();
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -199,9 +200,8 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
 /**
  * Creates a new game with the given emails and names. Updates {@link gameName} and sets round to 1.
  * @param {Object.<string, {name: string}>} emailsAndNames the emails and names of the players
- * @param {function(void):void} resolve the function to call to resolve the promise
  */
-async function newGame(emailsAndNames: { [key: string]: { name: string } }, resolve: () => void) {
+async function newGame(emailsAndNames: { [key: string]: { name: string } }) {
   const emails: string[] = [];
   const names: { [key: string]: { name: string } } = {};
   for (const [email, name] of Object.entries(emailsAndNames)) {
@@ -209,9 +209,10 @@ async function newGame(emailsAndNames: { [key: string]: { name: string } }, reso
     names[email] = name;
   }
   gameName = "game" + Date.now();
-  admin.firestore().collection(gameName).doc(info).update({round: 1});
-  await createNewRound(1, emails, names);
-  resolve();
+  const resetRoundNumberWrite = admin.firestore().collection(gameName).doc(info).update({round: 1});
+  const newRoundWrite = createNewRound(1, emails, names);
+  await resetRoundNumberWrite;
+  await newRoundWrite;
 }
 
 /**
