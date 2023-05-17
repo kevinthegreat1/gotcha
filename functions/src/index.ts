@@ -51,7 +51,6 @@ exports.queryTarget = functions.https.onCall((data, context) => {
  */
 function getTarget(context: CallableContext, resolve: (value: {
     email: string,
-    name: string,
     round: number,
     alive: boolean,
     targetEmail: string,
@@ -63,11 +62,16 @@ function getTarget(context: CallableContext, resolve: (value: {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((snapshot) => {
       const email = context.auth?.token.email;
-      if (email === undefined) {
+      if (!email) {
         throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
       }
       const game = snapshot.data()?.game;
       const player = game[email];
+      if (!player) {
+        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
+        return;
+      }
+
       let target = game[player.targetEmail];
       let targetEmail = player.targetEmail;
       // Loop until the target is alive
@@ -82,7 +86,6 @@ function getTarget(context: CallableContext, resolve: (value: {
 
       resolve({
         email: email,
-        name: player.name,
         round: round,
         alive: player.alive,
         targetEmail: targetEmail,
@@ -114,7 +117,6 @@ exports.eliminateTarget = functions.https.onCall((data, context) => {
  */
 function eliminateTarget(context: CallableContext, resolve: (value: {
     email: string,
-    name: string,
     round: number,
     alive: boolean,
     targetEmail: string,
