@@ -3,7 +3,7 @@ import {initializeApp} from "firebase/app";
 import {getAnalytics} from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import {getFunctions, httpsCallable, connectFunctionsEmulator} from "firebase/functions";
+import {getFunctions, httpsCallable} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, signInWithPopup} from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -28,7 +28,6 @@ const auth = getAuth();
 
 // Initialize Functions
 const functions = getFunctions(app);
-connectFunctionsEmulator(functions, "localhost", 5001);
 
 /**
  * Sign in with Google, updates the UI, and queries the target of the current user.
@@ -37,21 +36,21 @@ document.getElementById("signIn").onclick = () => {
     signInWithPopup(auth, provider).then(result => {
         const name = result.user.displayName;
         document.getElementById("name").innerHTML += name;
-        document.getElementById("signIn").style.visibility = "hidden";
+        document.getElementById("signIn").style.display = "none";
         //@ts-ignore
         for(const gameElement of document.getElementsByClassName("game")) {
-            gameElement.style.visibility = "visible";
+            gameElement.style.display = "";
         }
-        document.getElementById("name").style.visibility = "visible";
-        document.getElementById("round").style.visibility = "visible";
-        document.getElementById("alive").style.visibility = "visible";
-        document.getElementById("target").style.visibility = "visible";
+        document.getElementById("name").style.display = "";
+        document.getElementById("round").style.display = "";
+        document.getElementById("alive").style.display = "";
+        document.getElementById("target").style.display = "";
         result.user.getIdTokenResult().then(idTokenResult => {
             if (idTokenResult.claims.admin) {
                 // @ts-ignore
                 for (const adminElement of document.getElementsByClassName("admin")) {
                     if (!adminElement.id.startsWith("creating")) {
-                        adminElement.style.visibility = "visible";
+                        adminElement.style.display = "";
                     }
                 }
             }
@@ -65,20 +64,20 @@ document.getElementById("signIn").onclick = () => {
  */
 document.getElementById("eliminate").onclick = () => {
     if (confirm("Are you sure you want to eliminate your target?")) {
-        document.getElementById("eliminate").style.visibility = "hidden";
-        document.getElementById("eliminating").style.visibility = "visible";
+        document.getElementById("eliminate").style.display = "none";
+        document.getElementById("eliminating").style.display = "";
         eliminateAndHandleTarget();
     }
 }
 
 document.getElementById("newRound").onclick = () => {
     if (confirm("Are you sure you want to finish this round and start the next round?")) {
-        document.getElementById("newRound").style.visibility = "collapse";
-        document.getElementById("creatingNewRound").style.visibility = "visible";
+        document.getElementById("newRound").style.display = "none";
+        document.getElementById("creatingNewRound").style.display = "";
         const newRound = httpsCallable(functions, "newRound");
         newRound().then(() => {
-            document.getElementById("newRound").style.visibility = "visible";
-            document.getElementById("creatingNewRound").style.visibility = "collapse";
+            document.getElementById("newRound").style.display = "";
+            document.getElementById("creatingNewRound").style.display = "none";
             queryAndHandleTarget();
         });
     }
@@ -117,7 +116,7 @@ function eliminateAndHandleTarget() {
         }
         console.log("received query new target result: ", result.data);
         handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName);
-        document.getElementById("eliminating").style.visibility = "hidden";
+        document.getElementById("eliminating").style.display = "none";
     });
 }
 
@@ -133,7 +132,7 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
         document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
         if (alive) {
             document.getElementById("target").innerHTML = "Your target is " + targetName;
-            document.getElementById("eliminate").style.visibility = "visible";
+            document.getElementById("eliminate").style.display = "";
         } else {
             document.getElementById("target").innerHTML = "Thanks for playing!";
         }
