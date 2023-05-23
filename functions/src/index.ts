@@ -1,11 +1,12 @@
 /* eslint-disable max-len */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import {CollectionReference, FieldPath} from "firebase-admin/firestore";
+import {CollectionReference, FieldPath, Firestore} from "firebase-admin/firestore";
 import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
+const activeGameNameCollection = "activeGame";
+const activeGameName = "name";
 const info = "info";
-let gameName = "test-game-01";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -23,13 +24,24 @@ const firebaseConfig = {
 admin.initializeApp(firebaseConfig);
 
 /**
- * Reads the round number stored in the game collection.
- * @param {CollectionReference} gameCollection the game collection to read from
- * @return {Promise<number>} the round number
+ * Gets the active game collection from the game name stored in the active game collection.
+ * @param {Firestore} firestore the firestore instance to read from
  */
-async function getRound(gameCollection: CollectionReference): Promise<number> {
+async function getGameCollection(firestore: Firestore): Promise<CollectionReference> {
+  const gameDoc = await firestore.collection(activeGameNameCollection).doc(activeGameName).get();
+  const gameName = gameDoc.data()?.name;
+  return firestore.collection(gameName);
+}
+
+/**
+ * Reads the round number stored in the game collection based on the game name stored in the active game collection.
+ * @param {Firestore} firestore the firestore instance to read from
+ * @return {Promise<{ gameCollection: CollectionReference, round: number }>} the game collection and the round number
+ */
+async function getRound(firestore: Firestore): Promise<{ gameCollection: CollectionReference, round: number }> {
+  const gameCollection = await getGameCollection(firestore);
   const snapshot = await gameCollection.doc(info).get();
-  return snapshot.data()?.round;
+  return {gameCollection: gameCollection, round: snapshot.data()?.round};
 }
 
 exports.queryTarget = functions.https.onCall((data, context) => {
@@ -57,8 +69,7 @@ function getTarget(context: CallableContext, resolve: (value: {
     targetName: string
 }) => void, reject: (value: unknown) => void) {
   const firestore = admin.firestore();
-  const gameCollection = firestore.collection(gameName);
-  getRound(gameCollection).then((round) => {
+  getRound(firestore).then(({gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((snapshot) => {
       const email = context.auth?.token.email;
@@ -124,8 +135,7 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
 }) => void, reject: (value: unknown) => void) {
   getTarget(context, (result: { targetEmail: string }) => {
     const firestore = admin.firestore();
-    const gameCollection = firestore.collection(gameName);
-    getRound(gameCollection).then((round) => {
+    getRound(firestore).then(({gameCollection, round}) => {
       const roundDoc = gameCollection.doc("round" + round);
       roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
         getTarget(context, resolve, reject);
@@ -159,8 +169,7 @@ exports.newRound = functions.https.onCall((data, context) => {
  */
 function newRound(resolve: () => void) {
   const firestore = admin.firestore();
-  const gameCollection = firestore.collection(gameName);
-  getRound(gameCollection).then((round) => {
+  getRound(firestore).then(({gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then(async (snapshot) => {
       const emails: string[] = snapshot.data()?.emails;
@@ -171,7 +180,7 @@ function newRound(resolve: () => void) {
         }
       }
       const newRoundNumberWrite = gameCollection.doc(info).update({round: round + 1});
-      const newRoundWrite = createNewRound(round + 1, newEmails, snapshot.data()?.game);
+      const newRoundWrite = createNewRound(gameCollection, round + 1, newEmails, snapshot.data()?.game);
       await newRoundNumberWrite;
       await newRoundWrite;
       resolve();
@@ -200,7 +209,7 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
 });
 
 /**
- * Creates a new game with the given emails and names. Updates {@link gameName} and sets round to 1.
+ * Creates a new game with the given emails and names. Updates the active game and sets round to 1.
  * @param {Object.<string, {name: string}>} emailsAndNames the emails and names of the players
  */
 async function newGame(emailsAndNames: { [key: string]: { name: string } }) {
@@ -210,22 +219,23 @@ async function newGame(emailsAndNames: { [key: string]: { name: string } }) {
     emails.push(email);
     names[email] = name;
   }
-  gameName = "game" + Date.now();
+  const gameName = "test-game" + Date.now();
+  const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: gameName});
   const resetRoundNumberWrite = admin.firestore().collection(gameName).doc(info).update({round: 1});
-  const newRoundWrite = createNewRound(1, emails, names);
+  const newRoundWrite = createNewRound(admin.firestore().collection(gameName), 1, emails, names);
+  await newActiveGameNameWrite;
   await resetRoundNumberWrite;
   await newRoundWrite;
 }
 
 /**
- * Creates a new round with the given emails and names with {@link gameName} and the given round number.
+ * Creates a new round with the given emails and names with the active game and the given round number.
+ * @param {CollectionReference} gameCollection the game collection
  * @param {number} round the round number
  * @param {string[]} emails the emails of the players
  * @param {Object.<string, {name: string}>} names the names of the players
  */
-async function createNewRound(round: number, emails: string[], names: { [key: string]: { name: string } }) {
-  const firestore = admin.firestore();
-  const gameCollection = firestore.collection(gameName);
+async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: { [key: string]: { name: string } }) {
   const roundDoc = gameCollection.doc("round" + round);
   shuffleArray(emails);
   const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};

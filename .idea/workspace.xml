@@ -4,12 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Refactored newGame with async await">
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Updated index.html to use display property">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/app.bundle.js" beforeDir="false" afterPath="$PROJECT_DIR$/dist/app.bundle.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/functions/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/functions/src/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -134,7 +130,7 @@
       <workItem from="1684198875963" duration="6854000" />
       <workItem from="1684205754693" duration="7000" />
       <workItem from="1684243097160" duration="12618000" />
-      <workItem from="1684287467498" duration="3111000" />
+      <workItem from="1684287467498" duration="3570000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -283,7 +279,28 @@
       <option name="project" value="LOCAL" />
       <updated>1684287920545</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="Updated index.html to use display property">
+      <created>1684290652665</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1684290652665</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Improved player not found handling">
+      <created>1684290689880</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1684290689880</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Updated index.html to use display property">
+      <created>1684290884257</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1684290884257</updated>
+    </task>
+    <option name="localTasksCounter" value="25" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -320,7 +337,9 @@
     <MESSAGE value="Fixed newRound and newGame resolving before writes are complete" />
     <MESSAGE value="Updated createNewRound document write" />
     <MESSAGE value="Refactored newGame with async await" />
-    <option name="LAST_COMMIT_MESSAGE" value="Refactored newGame with async await" />
+    <MESSAGE value="Improved player not found handling" />
+    <MESSAGE value="Updated index.html to use display property" />
+    <option name="LAST_COMMIT_MESSAGE" value="Updated index.html to use display property" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
