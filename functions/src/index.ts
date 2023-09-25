@@ -228,7 +228,7 @@ async function newGame(data: { gameName: string, emailsAndNames: { [key: string]
   const names: { [key: string]: { name: string } } = {};
   for (const [email, name] of Object.entries(data.emailsAndNames)) {
     emails.push(email);
-    names[email].name = name;
+    names[email] = {name: name};
   }
   const gameName = data.gameName;
   const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: gameName});

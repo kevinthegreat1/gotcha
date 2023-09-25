@@ -77,9 +77,13 @@ document.getElementById("newRound").onclick = () => {
     document.getElementById("creatingNewRound").style.display = "";
     const newRound = httpsCallable(functions, "newRound");
     newRound().then(() => {
+      queryAndHandleTarget();
+    }).catch((error) => {
+      alert("Error creating new round: " + error)
+      console.log(error);
+    }).finally(() => {
       document.getElementById("newRound").style.display = "";
       document.getElementById("creatingNewRound").style.display = "none";
-      queryAndHandleTarget();
     });
   }
 }
@@ -94,7 +98,7 @@ document.getElementById("newGameForm").onsubmit = () => {
     // @ts-ignore
     console.log(document.getElementById("emailsField").value);
     // @ts-ignore
-    newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {}}).then(() => {
+    newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).then(() => {
       queryAndHandleTarget();
     }).catch((error) => {
       alert("Error creating new game: " + error)

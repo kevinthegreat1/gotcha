@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Update dependencies">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/app.bundle.js" beforeDir="false" afterPath="$PROJECT_DIR$/dist/app.bundle.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dist/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/dist/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/functions/src/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/functions/src/index.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/app.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/app.ts" afterDir="false" />
-    </list>
+    <list default="true" id="62f92890-3de1-4b1c-b9a2-83e07193ef37" name="Changes" comment="Add newGame front end" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -157,7 +151,7 @@
       <workItem from="1692020475022" duration="1456000" />
       <workItem from="1695607585297" duration="3540000" />
       <workItem from="1695655848281" duration="1953000" />
-      <workItem from="1695657816135" duration="1167000" />
+      <workItem from="1695657816135" duration="1443000" />
     </task>
     <task id="LOCAL-00001" summary="Initial commit">
       <created>1682040933400</created>
@@ -366,7 +360,15 @@
       <option name="project" value="LOCAL" />
       <updated>1695615749743</updated>
     </task>
-    <option name="localTasksCounter" value="30" />
+    <task id="LOCAL-00030" summary="Add newGame front end">
+      <option name="closed" value="true" />
+      <created>1695659245626</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1695659245626</updated>
+    </task>
+    <option name="localTasksCounter" value="31" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -408,7 +410,8 @@
     <MESSAGE value="Added variable game name" />
     <MESSAGE value="Refactor index.ts" />
     <MESSAGE value="Update dependencies" />
-    <option name="LAST_COMMIT_MESSAGE" value="Update dependencies" />
+    <MESSAGE value="Add newGame front end" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add newGame front end" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
