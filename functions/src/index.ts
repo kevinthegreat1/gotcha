@@ -4,9 +4,9 @@ import * as admin from "firebase-admin";
 import {CollectionReference, FieldPath, Firestore} from "firebase-admin/firestore";
 import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
-const activeGameNameCollection = "activeGame";
-const activeGameName = "name";
-const info = "info";
+const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
+const activeGameName = "name"; // The name of the document that stores the name of the active game
+const info = "info"; // The name of the document that stores the round number in the game collection
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -62,11 +62,11 @@ exports.queryTarget = functions.https.onCall((data, context) => {
  * @return {void}
  */
 function getTarget(context: CallableContext, resolve: (value: {
-    email: string,
-    round: number,
-    alive: boolean,
-    targetEmail: string,
-    targetName: string
+  email: string,
+  round: number,
+  alive: boolean,
+  targetEmail: string,
+  targetName: string
 }) => void, reject: (value: unknown) => void) {
   const firestore = admin.firestore();
   getRound(firestore).then(({gameCollection, round}) => {
@@ -127,11 +127,11 @@ exports.eliminateTarget = functions.https.onCall((data, context) => {
  * @return {void}
  */
 function eliminateTarget(context: CallableContext, resolve: (value: {
-    email: string,
-    round: number,
-    alive: boolean,
-    targetEmail: string,
-    targetName: string
+  email: string,
+  round: number,
+  alive: boolean,
+  targetEmail: string,
+  targetName: string
 }) => void, reject: (value: unknown) => void) {
   getTarget(context, (result: { targetEmail: string }) => {
     const firestore = admin.firestore();
@@ -188,7 +188,7 @@ function newRound(resolve: () => void) {
   });
 }
 
-exports.newGame = functions.https.onCall((data: { [key: string]: { name: string } }, context) => {
+exports.newGame = functions.https.onCall((data: { gameName: string, [key: string]: string }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -196,7 +196,7 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
 
     admin.auth().getUser(context.auth?.uid).then(async (user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
+        throw new functions.https.HttpsError("permission-denied", "only admins can start a new game");
       }
 
       await newGame(data);
@@ -212,12 +212,12 @@ exports.newGame = functions.https.onCall((data: { [key: string]: { name: string 
  * Creates a new game with the given emails and names. Updates the active game and sets round to 1.
  * @param {Object.<string, {name: string}>} emailsAndNames the emails and names of the players
  */
-async function newGame(emailsAndNames: { [key: string]: { name: string } }) {
+async function newGame(emailsAndNames: { gameName: string, [key: string]: string }) {
   const emails: string[] = [];
   const names: { [key: string]: { name: string } } = {};
   for (const [email, name] of Object.entries(emailsAndNames)) {
     emails.push(email);
-    names[email] = name;
+    names[email].name = name;
   }
   const gameName = "test-game" + Date.now();
   const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: gameName});
@@ -235,7 +235,9 @@ async function newGame(emailsAndNames: { [key: string]: { name: string } }) {
  * @param {string[]} emails the emails of the players
  * @param {Object.<string, {name: string}>} names the names of the players
  */
-async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: { [key: string]: { name: string } }) {
+async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: {
+  [key: string]: { name: string }
+}) {
   const roundDoc = gameCollection.doc("round" + round);
   shuffleArray(emails);
   const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};
