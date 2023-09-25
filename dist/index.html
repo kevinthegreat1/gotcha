@@ -20,10 +20,13 @@
 <hr class="divider admin" style="display:none">
 <h2 id="newGame" class="admin" style="display:none">Start a new game</h2>
 <form id="newGameForm" class="admin" style="display:none">
-    <label for="emailsField">Enter emails here with one entry per line</label><br>
+    <label for="newGameName" class="admin">Enter a name for the new game</label><br>
+    <input type="text" id="newGameName" class="admin"><br><br>
+    <label for="emailsField" class="admin">Enter emails here with one entry per line</label><br>
     <textarea id="emailsField" class="admin"></textarea><br>
     <button id="submit" class="admin">New Game</button>
 </form>
+<h2 id="creatingNewGame" class="admin" style="display:none">Creating New Game...</h2>
 
 <script src="app.bundle.js"></script>
 </body>

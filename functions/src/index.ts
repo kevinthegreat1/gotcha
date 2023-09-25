@@ -50,62 +50,67 @@ exports.queryTarget = functions.https.onCall((data, context) => {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
     }
 
-    getTarget(context, resolve, reject);
+    const firestore = admin.firestore();
+    getRound(firestore).then(({gameCollection, round}) => {
+      getTarget(context, gameCollection, round, resolve, reject);
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
   });
 });
 
 /**
  * Gets the target of the current user and calls resolve.
  * @param {CallableContext} context
+ * @param {CollectionReference} gameCollection the game collection to read from
+ * @param {number} round the round number to read from
  * @param {Object} resolve
  * @param {Object} reject
  * @return {void}
  */
-function getTarget(context: CallableContext, resolve: (value: {
+function getTarget(context: CallableContext, gameCollection: CollectionReference, round: number, resolve: (value: {
   email: string,
   round: number,
   alive: boolean,
   targetEmail: string,
   targetName: string
 }) => void, reject: (value: unknown) => void) {
-  const firestore = admin.firestore();
-  getRound(firestore).then(({gameCollection, round}) => {
-    const roundDoc = gameCollection.doc("round" + round);
-    roundDoc.get().then((snapshot) => {
-      const email = context.auth?.token.email;
-      if (!email) {
-        throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
-      }
-      const game = snapshot.data()?.game;
-      const player = game[email];
-      if (!player) {
-        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
-        return;
-      }
+  const roundDoc = gameCollection.doc("round" + round);
+  roundDoc.get().then((snapshot) => {
+    const email = context.auth?.token.email;
+    if (!email) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+    }
+    const game = snapshot.data()?.game;
+    const player = game[email];
+    if (!player) {
+      resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
+      return;
+    }
 
-      let target = game[player.targetEmail];
-      let targetEmail = player.targetEmail;
-      // Loop until the target is alive
-      while (!target.alive) {
-        // Break the loop if the target is the player
-        targetEmail = target.targetEmail;
-        target = game[targetEmail];
-        if (targetEmail === email) {
-          break;
-        }
+    let target = game[player.targetEmail];
+    let targetEmail = player.targetEmail;
+    // Loop until the target is alive
+    while (!target.alive) {
+      // Break the loop if the target is the player
+      targetEmail = target.targetEmail;
+      target = game[targetEmail];
+      if (targetEmail === email) {
+        break;
       }
+    }
 
-      resolve({
-        email: email,
-        round: round,
-        alive: player.alive,
-        targetEmail: targetEmail,
-        targetName: target.name,
-      });
-    }).catch((error) => {
-      functions.logger.log(error);
-      reject(error);
+    resolve({
+      email: email,
+      round: round,
+      alive: player.alive,
+      targetEmail: targetEmail,
+      targetName: target.name,
     });
+  }).catch((error) => {
+    functions.logger.log(error);
+    reject(error);
   });
 }
 
@@ -133,15 +138,18 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
   targetEmail: string,
   targetName: string
 }) => void, reject: (value: unknown) => void) {
-  getTarget(context, (result: { targetEmail: string }) => {
-    const firestore = admin.firestore();
-    getRound(firestore).then(({gameCollection, round}) => {
+  const firestore = admin.firestore();
+  getRound(firestore).then(({gameCollection, round}) => {
+    getTarget(context, gameCollection, round, (result: { round: number, targetEmail: string }) => {
       const roundDoc = gameCollection.doc("round" + round);
       roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
-        getTarget(context, resolve, reject);
+        getTarget(context, gameCollection, round, resolve, reject);
       });
-    });
-  }, reject);
+    }, reject);
+  }).catch((error) => {
+    functions.logger.log(error);
+    reject(error);
+  });
 }
 
 exports.newRound = functions.https.onCall((data, context) => {
@@ -188,7 +196,10 @@ function newRound(resolve: () => void) {
   });
 }
 
-exports.newGame = functions.https.onCall((data: { gameName: string, [key: string]: string }, context) => {
+exports.newGame = functions.https.onCall((data: {
+  gameName: string,
+  emailsAndNames: { [key: string]: string }
+}, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -210,16 +221,16 @@ exports.newGame = functions.https.onCall((data: { gameName: string, [key: string
 
 /**
  * Creates a new game with the given emails and names. Updates the active game and sets round to 1.
- * @param {Object.<string, {name: string}>} emailsAndNames the emails and names of the players
+ * @param {Object.<string, Object>} data the emails and names of the players
  */
-async function newGame(emailsAndNames: { gameName: string, [key: string]: string }) {
+async function newGame(data: { gameName: string, emailsAndNames: { [key: string]: string } }) {
   const emails: string[] = [];
   const names: { [key: string]: { name: string } } = {};
-  for (const [email, name] of Object.entries(emailsAndNames)) {
+  for (const [email, name] of Object.entries(data.emailsAndNames)) {
     emails.push(email);
     names[email].name = name;
   }
-  const gameName = "test-game" + Date.now();
+  const gameName = data.gameName;
   const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: gameName});
   const resetRoundNumberWrite = admin.firestore().collection(gameName).doc(info).update({round: 1});
   const newRoundWrite = createNewRound(admin.firestore().collection(gameName), 1, emails, names);
