@@ -23,8 +23,8 @@ const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 
 // Initialize Auth
-const provider = new GoogleAuthProvider();
-const auth = getAuth();
+export const auth = getAuth();
+export const provider = new GoogleAuthProvider();
 
 // Initialize Functions
 const functions = getFunctions(app);
@@ -33,83 +33,83 @@ connectFunctionsEmulator(functions, "localhost", 5001);
 /**
  * Sign in with Google, updates the UI, and queries the target of the current user.
  */
-document.getElementById("signIn").onclick = () => {
-  signInWithPopup(auth, provider).then(result => {
-    const name = result.user.displayName;
-    document.getElementById("name").innerHTML += name;
-    document.getElementById("signIn").style.display = "none";
-    //@ts-ignore
-    for (const gameElement of document.getElementsByClassName("game")) {
-      gameElement.style.display = "";
-    }
-    document.getElementById("name").style.display = "";
-    document.getElementById("round").style.display = "";
-    document.getElementById("alive").style.display = "";
-    document.getElementById("target").style.display = "";
-    result.user.getIdTokenResult().then(idTokenResult => {
-      if (idTokenResult.claims.admin) {
-        // @ts-ignore
-        for (const adminElement of document.getElementsByClassName("admin")) {
-          if (!adminElement.id.startsWith("creating")) {
-            adminElement.style.display = "";
-          }
-        }
-      }
-    })
-    queryAndHandleTarget();
-  });
-}
+// document.getElementById("signIn").onclick = () => {
+//   signInWithPopup(auth, provider).then(result => {
+//     const name = result.user.displayName;
+//     document.getElementById("name").innerHTML += name;
+//     document.getElementById("signIn").style.display = "none";
+//     //@ts-ignore
+//     for (const gameElement of document.getElementsByClassName("game")) {
+//       gameElement.style.display = "";
+//     }
+//     document.getElementById("name").style.display = "";
+//     document.getElementById("round").style.display = "";
+//     document.getElementById("alive").style.display = "";
+//     document.getElementById("target").style.display = "";
+//     result.user.getIdTokenResult().then(idTokenResult => {
+//       if (idTokenResult.claims.admin) {
+//         // @ts-ignore
+//         for (const adminElement of document.getElementsByClassName("admin")) {
+//           if (!adminElement.id.startsWith("creating")) {
+//             adminElement.style.display = "";
+//           }
+//         }
+//       }
+//     })
+//     queryAndHandleTarget();
+//   });
+// }
 
 /**
  * Eliminates the target of the current user, queries the new target of the current user, and updates the user.
  */
-document.getElementById("eliminate").onclick = () => {
-  if (confirm("Are you sure you want to eliminate your target?")) {
-    document.getElementById("eliminate").style.display = "none";
-    document.getElementById("eliminating").style.display = "";
-    eliminateAndHandleTarget();
-  }
-}
-
-document.getElementById("newRound").onclick = () => {
-  if (confirm("Are you sure you want to finish this round and start the next round?")) {
-    document.getElementById("newRound").style.display = "none";
-    document.getElementById("creatingNewRound").style.display = "";
-    const newRound = httpsCallable(functions, "newRound");
-    newRound().then(() => {
-      queryAndHandleTarget();
-    }).catch((error) => {
-      alert("Error creating new round: " + error)
-      console.log(error);
-    }).finally(() => {
-      document.getElementById("newRound").style.display = "";
-      document.getElementById("creatingNewRound").style.display = "none";
-    });
-  }
-}
-
-document.getElementById("newGameForm").onsubmit = () => {
-  if (confirm("Are you sure you want to finish this game and start a new game?")) {
-    document.getElementById("newGameForm").style.display = "none";
-    document.getElementById("creatingNewGame").style.display = "";
-    const newGame = httpsCallable(functions, "newGame");
-    // @ts-ignore
-    console.log(document.getElementById("newGameName").value);
-    // @ts-ignore
-    console.log(document.getElementById("emailsField").value);
-    // @ts-ignore
-    newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).then(() => {
-      queryAndHandleTarget();
-    }).catch((error) => {
-      alert("Error creating new game: " + error)
-      console.log(error);
-    }).finally(() => {
-      document.getElementById("newGameForm").style.display = "";
-      document.getElementById("creatingNewGame").style.display = "none";
-    });
-  }
-  return false;
-}
+// document.getElementById("eliminate").onclick = () => {
+//   if (confirm("Are you sure you want to eliminate your target?")) {
+//     document.getElementById("eliminate").style.display = "none";
+//     document.getElementById("eliminating").style.display = "";
+//     eliminateAndHandleTarget();
+//   }
+// }
+//
+// document.getElementById("newRound").onclick = () => {
+//   if (confirm("Are you sure you want to finish this round and start the next round?")) {
+//     document.getElementById("newRound").style.display = "none";
+//     document.getElementById("creatingNewRound").style.display = "";
+//     const newRound = httpsCallable(functions, "newRound");
+//     newRound().then(() => {
+//       queryAndHandleTarget();
+//     }).catch((error) => {
+//       alert("Error creating new round: " + error)
+//       console.log(error);
+//     }).finally(() => {
+//       document.getElementById("newRound").style.display = "";
+//       document.getElementById("creatingNewRound").style.display = "none";
+//     });
+//   }
+// }
+//
+// document.getElementById("newGameForm").onsubmit = () => {
+//   if (confirm("Are you sure you want to finish this game and start a new game?")) {
+//     document.getElementById("newGameForm").style.display = "none";
+//     document.getElementById("creatingNewGame").style.display = "";
+//     const newGame = httpsCallable(functions, "newGame");
+//     // @ts-ignore
+//     console.log(document.getElementById("newGameName").value);
+//     // @ts-ignore
+//     console.log(document.getElementById("emailsField").value);
+//     // @ts-ignore
+//     newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).then(() => {
+//       queryAndHandleTarget();
+//     }).catch((error) => {
+//       alert("Error creating new game: " + error)
+//       console.log(error);
+//     }).finally(() => {
+//       document.getElementById("newGameForm").style.display = "";
+//       document.getElementById("creatingNewGame").style.display = "none";
+//     });
+//   }
+//   return false;
+// }
 
 /**
  * Queries the target of the current user and updates the UI.
