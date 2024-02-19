@@ -17,21 +17,33 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kevinthegreat.gotcha"
+      "bundleIdentifier": "com.kevinthegreat.gotcha",
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.kevinthegreat.gotcha"
+      "package": "com.kevinthegreat.gotcha",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
-    ]
+      "expo-router",
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "0e6507dd-e2f1-43b8-b5f0-2556b1989b88"
+      }
+    },
+    "owner": "project_info"
   }
 }
