@@ -4,7 +4,7 @@ import {getAnalytics} from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
-import {getAuth, GoogleAuthProvider, signInWithPopup} from "firebase/auth";
+import {getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult} from "firebase/auth";
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -28,37 +28,39 @@ const auth = getAuth();
 
 // Initialize Functions
 const functions = getFunctions(app);
-connectFunctionsEmulator(functions, "localhost", 5001);
+// connectFunctionsEmulator(functions, "localhost", 5001);
 
 /**
  * Sign in with Google, updates the UI, and queries the target of the current user.
  */
 document.getElementById("signIn").onclick = () => {
-  signInWithPopup(auth, provider).then(result => {
-    const name = result.user.displayName;
-    document.getElementById("name").innerHTML += name;
-    document.getElementById("signIn").style.display = "none";
-    //@ts-ignore
-    for (const gameElement of document.getElementsByClassName("game")) {
-      gameElement.style.display = "";
-    }
-    document.getElementById("name").style.display = "";
-    document.getElementById("round").style.display = "";
-    document.getElementById("alive").style.display = "";
-    document.getElementById("target").style.display = "";
-    result.user.getIdTokenResult().then(idTokenResult => {
-      if (idTokenResult.claims.admin) {
-        // @ts-ignore
-        for (const adminElement of document.getElementsByClassName("admin")) {
-          if (!adminElement.id.startsWith("creating")) {
-            adminElement.style.display = "";
-          }
+  signInWithRedirect(auth, provider);
+}
+
+getRedirectResult(auth).then(result => {
+  const name = result.user.displayName;
+  document.getElementById("name").innerHTML += name;
+  document.getElementById("signIn").style.display = "none";
+  //@ts-ignore
+  for (const gameElement of document.getElementsByClassName("game")) {
+    gameElement.style.display = "";
+  }
+  document.getElementById("name").style.display = "";
+  document.getElementById("round").style.display = "";
+  document.getElementById("alive").style.display = "";
+  document.getElementById("target").style.display = "";
+  result.user.getIdTokenResult().then(idTokenResult => {
+    if (idTokenResult.claims.admin) {
+      // @ts-ignore
+      for (const adminElement of document.getElementsByClassName("admin")) {
+        if (!adminElement.id.startsWith("creating")) {
+          adminElement.style.display = "";
         }
       }
-    })
-    queryAndHandleTarget();
-  });
-}
+    }
+  })
+  queryAndHandleTarget();
+});
 
 /**
  * Eliminates the target of the current user, queries the new target of the current user, and updates the user.
