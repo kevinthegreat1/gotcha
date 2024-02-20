@@ -1,7 +1,7 @@
 /* eslint-disable max-len */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import {CollectionReference, FieldPath, Firestore} from "firebase-admin/firestore";
+import {CollectionReference, DocumentReference, FieldPath, Firestore} from "firebase-admin/firestore";
 import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
@@ -27,32 +27,47 @@ admin.initializeApp(firebaseConfig);
  * Gets the active game collection from the game name stored in the active game collection.
  * @param {Firestore} firestore the firestore instance to read from
  */
-async function getGameCollection(firestore: Firestore): Promise<CollectionReference> {
+async function getGameCollection(firestore: Firestore): Promise<{
+  gameName: string,
+  gameCollection: CollectionReference
+}> {
   const gameDoc = await firestore.collection(activeGameNameCollection).doc(activeGameName).get();
   const gameName = gameDoc.data()?.name;
-  return firestore.collection(gameName);
+  if (!gameName) {
+    throw new functions.https.HttpsError("not-found", "active game name not found");
+  }
+  const gameCollection = firestore.collection(gameName);
+  return {gameName, gameCollection};
 }
 
 /**
  * Reads the round number stored in the game collection based on the game name stored in the active game collection.
  * @param {Firestore} firestore the firestore instance to read from
- * @return {Promise<{ gameCollection: CollectionReference, round: number }>} the game collection and the round number
+ * @return {Promise<{ gameName: string, gameCollection: CollectionReference, round: number }>} the game collection and the round number
  */
-async function getRound(firestore: Firestore): Promise<{ gameCollection: CollectionReference, round: number }> {
-  const gameCollection = await getGameCollection(firestore);
-  const snapshot = await gameCollection.doc(info).get();
-  return {gameCollection: gameCollection, round: snapshot.data()?.round};
+async function getRound(firestore: Firestore): Promise<{
+  gameName: string,
+  gameCollection: CollectionReference,
+  round: number
+}> {
+  const {gameName, gameCollection} = await getGameCollection(firestore);
+  const round = (await gameCollection.doc(info).get())?.data()?.round;
+  if (!round) {
+    throw new functions.https.HttpsError("not-found", `game '${gameName}' info document not found`);
+  }
+  return {gameName, gameCollection, round};
 }
 
-exports.queryTarget = functions.https.onCall((data, context) => {
+exports.queryTarget = functions.https.onCall((_data, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
     }
 
     const firestore = admin.firestore();
-    getRound(firestore).then(({gameCollection, round}) => {
-      getTarget(context, gameCollection, round, resolve, reject);
+    getRound(firestore).then(({gameName, gameCollection, round}) => {
+      const roundDoc = gameCollection.doc("round" + round);
+      getTarget(context, gameName, round, roundDoc, resolve, reject);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -63,26 +78,29 @@ exports.queryTarget = functions.https.onCall((data, context) => {
 /**
  * Gets the target of the current user and calls resolve.
  * @param {CallableContext} context
- * @param {CollectionReference} gameCollection the game collection to read from
+ * @param {string} gameName the name of the game collection
  * @param {number} round the round number to read from
+ * @param {DocumentReference} roundDoc the round document
  * @param {Object} resolve
  * @param {Object} reject
  * @return {void}
  */
-function getTarget(context: CallableContext, gameCollection: CollectionReference, round: number, resolve: (value: {
+function getTarget(context: CallableContext, gameName: string, round: number, roundDoc: DocumentReference, resolve: (value: {
   email: string,
   round: number,
   alive: boolean,
   targetEmail: string,
   targetName: string
-}) => void, reject: (value: unknown) => void) {
-  const roundDoc = gameCollection.doc("round" + round);
-  roundDoc.get().then((snapshot) => {
-    const email = context.auth?.token.email;
-    if (!email) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+}) => void, reject: (value: unknown) => void): void {
+  const email = context.auth?.token.email;
+  if (!email) {
+    throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+  }
+  roundDoc.get().then((roundDoc) => {
+    const game = roundDoc?.data()?.game;
+    if (!game) {
+      throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
     }
-    const game = snapshot.data()?.game;
     const player = game[email];
     if (!player) {
       resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
@@ -114,7 +132,7 @@ function getTarget(context: CallableContext, gameCollection: CollectionReference
   });
 }
 
-exports.eliminateTarget = functions.https.onCall((data, context) => {
+exports.eliminateTarget = functions.https.onCall((_data, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -137,13 +155,13 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
   alive: boolean,
   targetEmail: string,
   targetName: string
-}) => void, reject: (value: unknown) => void) {
+}) => void, reject: (value: unknown) => void): void {
   const firestore = admin.firestore();
-  getRound(firestore).then(({gameCollection, round}) => {
-    getTarget(context, gameCollection, round, (result: { round: number, targetEmail: string }) => {
-      const roundDoc = gameCollection.doc("round" + round);
+  getRound(firestore).then(({gameName, gameCollection, round}) => {
+    const roundDoc = gameCollection.doc("round" + round);
+    getTarget(context, gameName, round, roundDoc, (result: { round: number, targetEmail: string }) => {
       roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
-        getTarget(context, gameCollection, round, resolve, reject);
+        getTarget(context, gameName, round, roundDoc, resolve, reject);
       });
     }, reject);
   }).catch((error) => {
@@ -152,7 +170,7 @@ function eliminateTarget(context: CallableContext, resolve: (value: {
   });
 }
 
-exports.newRound = functions.https.onCall((data, context) => {
+exports.newRound = functions.https.onCall((_data, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -177,18 +195,22 @@ exports.newRound = functions.https.onCall((data, context) => {
  */
 function newRound(resolve: () => void) {
   const firestore = admin.firestore();
-  getRound(firestore).then(({gameCollection, round}) => {
+  getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then(async (snapshot) => {
-      const emails: string[] = snapshot.data()?.emails;
+      const data = snapshot.data();
+      if (!data) {
+        throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+      }
+      const emails: string[] = data.emails;
       const newEmails: string[] = [];
       for (const email of emails) {
-        if (snapshot.data()?.game[email].alive) {
+        if (data.game[email].alive) {
           newEmails.push(email);
         }
       }
       const newRoundNumberWrite = gameCollection.doc(info).update({round: round + 1});
-      const newRoundWrite = createNewRound(gameCollection, round + 1, newEmails, snapshot.data()?.game);
+      const newRoundWrite = createNewRound(gameCollection, round + 1, newEmails, data.game);
       await newRoundNumberWrite;
       await newRoundWrite;
       resolve();
