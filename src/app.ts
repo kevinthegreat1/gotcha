@@ -1,10 +1,10 @@
 // Import the functions you need from the SDKs you need
 import {initializeApp} from "firebase/app";
 import {getAnalytics} from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
+// Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
-import {getAuth, getRedirectResult, GoogleAuthProvider, signInWithRedirect} from "firebase/auth";
+import {getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithRedirect, signOut} from "firebase/auth";
 import {doc, getFirestore, onSnapshot, Unsubscribe} from "firebase/firestore";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
@@ -45,20 +45,54 @@ const functions = getFunctions(app);
 const firestore = getFirestore(app);
 
 /**
- * Sign in with Google, updates the UI, and queries the target of the current user.
+ * Signs in with Google, updates the UI, and queries the target of the current user.
  */
 document.getElementById("signIn").onclick = () => {
   signInWithRedirect(auth, provider);
+  document.getElementById("signIn").style.display = "none";
+  document.getElementById("signingIn").style.display = "";
 }
 
-getRedirectResult(auth).then(result => {
-  if (!result) {
-    console.log("Sign in with redirect result is null");
+/**
+ * Signs out and updates the UI.
+ */
+document.getElementById("signOut").onclick = () => {
+  if (!confirm("Are you sure you want to sign out?")) {
     return;
   }
-  const name = result.user.displayName;
+  document.getElementById("signOut").style.visibility = "hidden";
+  document.getElementById("signingOut").style.display = "";
+  signOut(auth).then(() => {
+    document.getElementById("signingOut").style.display = "none";
+  }).catch((error) => {
+    console.log("Error signing out: ", error);
+  });
+}
+
+onAuthStateChanged(auth, user => {
+  if (!user) {
+    console.log("Auth state changed to null. Most likely the user signed out.");
+    document.getElementById("signIn").style.display = "";
+    document.getElementById("signingIn").style.display = "none";
+    document.getElementById("signOut").style.visibility = "hidden";
+    document.getElementById("signingOut").style.display = "none";
+    //@ts-ignore
+    for (const gameElement of document.getElementsByClassName("game")) {
+      gameElement.style.display = "none";
+    }
+    document.getElementById("eliminate").style.display = "none";
+    //@ts-ignore
+    for (const gameElement of document.getElementsByClassName("admin")) {
+      gameElement.style.display = "none";
+    }
+    return;
+  }
+  const name = user.displayName;
   document.getElementById("name").innerHTML += name;
   document.getElementById("signIn").style.display = "none";
+  document.getElementById("signingIn").style.display = "none";
+  document.getElementById("signOut").style.visibility = "";
+  document.getElementById("signingOut").style.display = "none";
   //@ts-ignore
   for (const gameElement of document.getElementsByClassName("game")) {
     gameElement.style.display = "";
@@ -67,7 +101,7 @@ getRedirectResult(auth).then(result => {
   document.getElementById("round").style.display = "";
   document.getElementById("alive").style.display = "";
   document.getElementById("target").style.display = "";
-  result.user.getIdTokenResult().then(idTokenResult => {
+  user.getIdTokenResult().then(idTokenResult => {
     if (idTokenResult.claims.admin) {
       // @ts-ignore
       for (const adminElement of document.getElementsByClassName("admin")) {
@@ -79,11 +113,17 @@ getRedirectResult(auth).then(result => {
   });
   queryAndHandleTarget();
   onSnapshot(doc(firestore, activeGameNameCollection, activeGameName), (activeGameNameDoc) => {
+    if (activeGameNameDoc.metadata.hasPendingWrites) {
+      return;
+    }
     gameName = activeGameNameDoc.data()[activeGameName];
     if (unsubRound) {
       unsubRound();
     }
     unsubRound = onSnapshot(doc(firestore, gameName, info), (roundDoc) => {
+      if (roundDoc.metadata.hasPendingWrites) {
+        return;
+      }
       round = roundDoc.data()?.round;
       if (!round) {
         console.log(`Game '${gameName}' info document not found. Report this to the developer.`);
@@ -92,6 +132,9 @@ getRedirectResult(auth).then(result => {
         unsubGame();
       }
       unsubGame = onSnapshot(doc(firestore, gameName, "round" + round), (gameDoc) => {
+        if (gameDoc.metadata.hasPendingWrites) {
+          return;
+        }
         if (isInitialGameSnapshot) {
           isInitialGameSnapshot = false;
           return;
@@ -106,46 +149,49 @@ getRedirectResult(auth).then(result => {
  * Eliminates the target of the current user, queries the new target of the current user, and updates the user.
  */
 document.getElementById("eliminate").onclick = () => {
-  if (confirm("Are you sure you want to eliminate your target?")) {
-    document.getElementById("eliminate").style.display = "none";
-    document.getElementById("eliminating").style.display = "";
-    eliminateAndHandleTarget();
+  if (!confirm("Are you sure you want to eliminate your target?")) {
+    return;
   }
+  document.getElementById("eliminate").style.display = "none";
+  document.getElementById("eliminating").style.display = "";
+  eliminateAndHandleTarget();
 }
 
 document.getElementById("newRound").onclick = () => {
-  if (confirm("Are you sure you want to finish this round and start the next round?")) {
-    document.getElementById("newRound").style.display = "none";
-    document.getElementById("creatingNewRound").style.display = "";
-    const newRound = httpsCallable(functions, "newRound");
-    newRound().catch((error) => {
-      alert("Error creating new round: " + error)
-      console.log(error);
-    }).finally(() => {
-      document.getElementById("newRound").style.display = "";
-      document.getElementById("creatingNewRound").style.display = "none";
-    });
+  if (!confirm("Are you sure you want to finish this round and start the next round?")) {
+    return;
   }
+  document.getElementById("newRound").style.display = "none";
+  document.getElementById("creatingNewRound").style.display = "";
+  const newRound = httpsCallable(functions, "newRound");
+  newRound().catch((error) => {
+    alert("Error creating new round: " + error)
+    console.log(error);
+  }).finally(() => {
+    document.getElementById("newRound").style.display = "";
+    document.getElementById("creatingNewRound").style.display = "none";
+  });
 }
 
 document.getElementById("newGameForm").onsubmit = () => {
-  if (confirm("Are you sure you want to finish this game and start a new game?")) {
-    document.getElementById("newGameForm").style.display = "none";
-    document.getElementById("creatingNewGame").style.display = "";
-    const newGame = httpsCallable(functions, "newGame");
-    // @ts-ignore
-    console.log(document.getElementById("newGameName").value);
-    // @ts-ignore
-    console.log(document.getElementById("emailsField").value);
-    // @ts-ignore
-    newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).catch((error) => {
-      alert("Error creating new game: " + error)
-      console.log(error);
-    }).finally(() => {
-      document.getElementById("newGameForm").style.display = "";
-      document.getElementById("creatingNewGame").style.display = "none";
-    });
+  if (!confirm("Are you sure you want to finish this game and start a new game?")) {
+    return false;
   }
+  document.getElementById("newGameForm").style.display = "none";
+  document.getElementById("creatingNewGame").style.display = "";
+  const newGame = httpsCallable(functions, "newGame");
+  // @ts-ignore
+  console.log(document.getElementById("newGameName").value);
+  // @ts-ignore
+  console.log(document.getElementById("emailsField").value);
+  // @ts-ignore
+  newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).catch((error) => {
+    alert("Error creating new game: " + error)
+    console.log(error);
+  }).finally(() => {
+    document.getElementById("newGameForm").style.display = "";
+    document.getElementById("creatingNewGame").style.display = "none";
+  });
   return false;
 }
 
