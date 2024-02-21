@@ -118,9 +118,7 @@ document.getElementById("newRound").onclick = () => {
     document.getElementById("newRound").style.display = "none";
     document.getElementById("creatingNewRound").style.display = "";
     const newRound = httpsCallable(functions, "newRound");
-    newRound().then(() => {
-      queryAndHandleTarget();
-    }).catch((error) => {
+    newRound().catch((error) => {
       alert("Error creating new round: " + error)
       console.log(error);
     }).finally(() => {
@@ -140,9 +138,7 @@ document.getElementById("newGameForm").onsubmit = () => {
     // @ts-ignore
     console.log(document.getElementById("emailsField").value);
     // @ts-ignore
-    newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).then(() => {
-      queryAndHandleTarget();
-    }).catch((error) => {
+    newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).catch((error) => {
       alert("Error creating new game: " + error)
       console.log(error);
     }).finally(() => {
