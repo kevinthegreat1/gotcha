@@ -199,8 +199,7 @@ document.getElementById("newGameForm").onsubmit = () => {
  * Queries the target of the current user and updates the UI.
  */
 function queryAndHandleTarget() {
-  const queryTarget = httpsCallable(functions, "queryTarget");
-  queryTarget().then((result: {
+  httpsCallable(functions, "queryTarget")().then((result: {
     data: { email: string, round: number, alive: boolean, targetEmail: string, targetName: string }
   }) => {
     if (result === null || result.data === null) {
@@ -218,18 +217,7 @@ function queryAndHandleTarget() {
  * Eliminates the target of the current user, queries the new target of the current user, and updates the UI.
  */
 function eliminateAndHandleTarget() {
-  const eliminateTarget = httpsCallable(functions, "eliminateTarget");
-  eliminateTarget().then((result: {
-    data: { email: string, round: number, alive: boolean, targetEmail: string, targetName: string }
-  }) => {
-    if (result === null || result.data === null) {
-      console.log("query new target result is null");
-      return;
-    }
-    console.log("received query new target result: ", result.data);
-    handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName);
-    document.getElementById("eliminating").style.display = "none";
-  });
+  httpsCallable(functions, "eliminateTarget")();
 }
 
 /**
@@ -249,4 +237,5 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
       document.getElementById("target").innerHTML = "Thanks for playing!";
     }
   }
+  document.getElementById("eliminating").style.display = "none";
 }

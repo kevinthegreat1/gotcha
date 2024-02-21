@@ -133,7 +133,7 @@ function getTarget(context: CallableContext, gameName: string, round: number, ro
 }
 
 exports.eliminateTarget = functions.https.onCall((_data, context) => {
-  return new Promise((resolve, reject) => {
+  return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
     }
@@ -149,20 +149,12 @@ exports.eliminateTarget = functions.https.onCall((_data, context) => {
  * @param {Object} reject
  * @return {void}
  */
-function eliminateTarget(context: CallableContext, resolve: (value: {
-  email: string,
-  round: number,
-  alive: boolean,
-  targetEmail: string,
-  targetName: string
-}) => void, reject: (value: unknown) => void): void {
+function eliminateTarget(context: CallableContext, resolve: () => void, reject: (value: unknown) => void): void {
   const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     getTarget(context, gameName, round, roundDoc, (result: { round: number, targetEmail: string }) => {
-      roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(() => {
-        getTarget(context, gameName, round, roundDoc, resolve, reject);
-      });
+      roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(resolve);
     }, reject);
   }).catch((error) => {
     functions.logger.log(error);
