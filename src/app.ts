@@ -4,7 +4,18 @@ import {getAnalytics} from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
-import {getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult} from "firebase/auth";
+import {getAuth, getRedirectResult, GoogleAuthProvider, signInWithRedirect} from "firebase/auth";
+import {doc, getFirestore, onSnapshot, Unsubscribe} from "firebase/firestore";
+
+const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
+const activeGameName = "name"; // The name of the document that stores the name of the active game
+const info = "info"; // The name of the document that stores the round number in the game collection
+
+let gameName = "";
+let round = "";
+let isInitialGameSnapshot = true;
+let unsubRound: Unsubscribe;
+let unsubGame: Unsubscribe;
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -30,6 +41,9 @@ const auth = getAuth();
 const functions = getFunctions(app);
 // connectFunctionsEmulator(functions, "localhost", 5001);
 
+// Initialize Firestore
+const firestore = getFirestore(app);
+
 /**
  * Sign in with Google, updates the UI, and queries the target of the current user.
  */
@@ -38,6 +52,10 @@ document.getElementById("signIn").onclick = () => {
 }
 
 getRedirectResult(auth).then(result => {
+  if (!result) {
+    console.log("Sign in with redirect result is null");
+    return;
+  }
   const name = result.user.displayName;
   document.getElementById("name").innerHTML += name;
   document.getElementById("signIn").style.display = "none";
@@ -58,8 +76,30 @@ getRedirectResult(auth).then(result => {
         }
       }
     }
-  })
+  });
   queryAndHandleTarget();
+  onSnapshot(doc(firestore, activeGameNameCollection, activeGameName), (activeGameNameDoc) => {
+    gameName = activeGameNameDoc.data()[activeGameName];
+    if (unsubRound) {
+      unsubRound();
+    }
+    unsubRound = onSnapshot(doc(firestore, gameName, info), (roundDoc) => {
+      round = roundDoc.data()?.round;
+      if (!round) {
+        console.log(`Game '${gameName}' info document not found. Report this to the developer.`);
+      }
+      if (unsubGame) {
+        unsubGame();
+      }
+      unsubGame = onSnapshot(doc(firestore, gameName, "round" + round), (gameDoc) => {
+        if (isInitialGameSnapshot) {
+          isInitialGameSnapshot = false;
+          return;
+        }
+        queryAndHandleTarget();
+      });
+    });
+  });
 });
 
 /**
@@ -122,10 +162,10 @@ function queryAndHandleTarget() {
     data: { email: string, round: number, alive: boolean, targetEmail: string, targetName: string }
   }) => {
     if (result === null || result.data === null) {
-      console.log("query target result is null");
+      console.log("Query target result is null");
       return;
     }
-    console.log("received query target result: ", result.data);
+    console.log("Query target result: ", result.data);
     handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName)
   }).catch(error => {
     console.log(error);
