@@ -211,8 +211,8 @@ function newRound(resolve: () => void) {
 }
 
 exports.newGame = functions.https.onCall((data: {
-  gameName: string,
-  emailsAndNames: { [key: string]: string }
+  newGameName: string,
+  emailsAndNames: { [email: string]: string }
 }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
@@ -237,17 +237,17 @@ exports.newGame = functions.https.onCall((data: {
  * Creates a new game with the given emails and names. Updates the active game and sets round to 1.
  * @param {Object.<string, Object>} data the emails and names of the players
  */
-async function newGame(data: { gameName: string, emailsAndNames: { [key: string]: string } }) {
+async function newGame(data: { newGameName: string, emailsAndNames: { [email: string]: string } }) {
   const emails: string[] = [];
-  const names: { [key: string]: { name: string } } = {};
+  const names: { [email: string]: { name: string } } = {};
   for (const [email, name] of Object.entries(data.emailsAndNames)) {
     emails.push(email);
     names[email] = {name: name};
   }
-  const gameName = data.gameName;
-  const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: gameName});
-  const resetRoundNumberWrite = admin.firestore().collection(gameName).doc(info).update({round: 1});
-  const newRoundWrite = createNewRound(admin.firestore().collection(gameName), 1, emails, names);
+  const {newGameName} = data;
+  const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: newGameName});
+  const resetRoundNumberWrite = admin.firestore().collection(newGameName).doc(info).set({round: 1});
+  const newRoundWrite = createNewRound(admin.firestore().collection(newGameName), 1, emails, names);
   await newActiveGameNameWrite;
   await resetRoundNumberWrite;
   await newRoundWrite;
@@ -261,11 +261,11 @@ async function newGame(data: { gameName: string, emailsAndNames: { [key: string]
  * @param {Object.<string, {name: string}>} names the names of the players
  */
 async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: {
-  [key: string]: { name: string }
+  [email: string]: { name: string }
 }) {
   const roundDoc = gameCollection.doc("round" + round);
   shuffleArray(emails);
-  const game: { [key: string]: { alive: boolean, name: string, targetEmail: string } } = {};
+  const game: { [email: string]: { alive: boolean, name: string, targetEmail: string } } = {};
   for (let i = 0; i < emails.length; i++) {
     const email = emails[i];
     const targetEmail = emails[(i + 1) % emails.length];

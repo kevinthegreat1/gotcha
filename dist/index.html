@@ -27,11 +27,13 @@
 <form id="newGameForm" class="admin" style="display:none">
     <label for="newGameName" class="admin">Enter a name for the new game</label><br>
     <input type="text" id="newGameName" class="admin"><br><br>
-    <label for="emailsField" class="admin">Enter emails here with one entry per line</label><br>
+    <label for="emailsField" class="admin">Enter emails and names here with one email and name on each line, separated by a comma or a tab. Pasting from Google Sheets should work.</label><br>
     <textarea id="emailsField" class="admin"></textarea><br>
     <button id="submit" class="admin">New Game</button>
 </form>
 <h2 id="creatingNewGame" class="admin" style="display:none">Creating New Game...</h2>
+
+<b id="credits" style="float:right">Created by Kevin Yang '25</b>
 
 <script src="app.bundle.js"></script>
 </body>

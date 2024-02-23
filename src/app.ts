@@ -14,6 +14,7 @@ const info = "info"; // The name of the document that stores the round number in
 let gameName = "";
 let round = "";
 let isInitialGameSnapshot = true;
+let unsubActiveGameName: Unsubscribe;
 let unsubRound: Unsubscribe;
 let unsubGame: Unsubscribe;
 
@@ -62,6 +63,15 @@ document.getElementById("signOut").onclick = () => {
   }
   document.getElementById("signOut").style.visibility = "hidden";
   document.getElementById("signingOut").style.display = "";
+  if (unsubActiveGameName) {
+    unsubActiveGameName();
+  }
+  if (unsubRound) {
+    unsubRound();
+  }
+  if (unsubGame) {
+    unsubGame();
+  }
   signOut(auth).then(() => {
     document.getElementById("signingOut").style.display = "none";
   }).catch((error) => {
@@ -112,7 +122,10 @@ onAuthStateChanged(auth, user => {
     }
   });
   queryAndHandleTarget();
-  onSnapshot(doc(firestore, activeGameNameCollection, activeGameName), (activeGameNameDoc) => {
+  if (unsubActiveGameName) {
+    unsubActiveGameName();
+  }
+  unsubActiveGameName = onSnapshot(doc(firestore, activeGameNameCollection, activeGameName), (activeGameNameDoc) => {
     if (activeGameNameDoc.metadata.hasPendingWrites) {
       return;
     }
@@ -174,25 +187,91 @@ document.getElementById("newRound").onclick = () => {
 }
 
 document.getElementById("newGameForm").onsubmit = () => {
-  if (!confirm("Are you sure you want to finish this game and start a new game?")) {
-    return false;
-  }
   document.getElementById("newGameForm").style.display = "none";
   document.getElementById("creatingNewGame").style.display = "";
-  const newGame = httpsCallable(functions, "newGame");
-  // @ts-ignore
-  console.log(document.getElementById("newGameName").value);
-  // @ts-ignore
-  console.log(document.getElementById("emailsField").value);
-  // @ts-ignore
-  newGame({gameName: document.getElementById("newGameName").value, emailsAndNames: {a: "a"}}).catch((error) => {
-    alert("Error creating new game: " + error)
+  if (!confirm("Are you sure you want to finish this game and start a new game?")) {
+    return onNewGameFailure();
+  }
+
+  try {
+    // @ts-ignore
+    const newGameName: string = document.getElementById("newGameName").value;
+    // @ts-ignore
+    const emailsAndNamesString: string = document.getElementById("emailsField").value;
+    if (!newGameName) {
+      alert("Error creating new game: Game name is empty.");
+      return onNewGameFailure();
+    }
+    if (!emailsAndNamesString) {
+      alert("Error creating new game: Emails and names are empty.");
+      return onNewGameFailure();
+    }
+    const emailsAndNamesArray = emailsAndNamesString.split("\n");
+    if (!confirm(`Creating a new game with ${emailsAndNamesArray.length} players. Confirm the player count is correct.`)) {
+      return onNewGameFailure();
+    }
+    const emailsAndNames: { [email: string]: string } = {};
+    for (let line = 0; line < emailsAndNamesArray.length; line++) {
+      const emailAndName = emailsAndNamesArray[line];
+      if (!emailAndName) {
+        alert(`Error creating new game: Line ${line + 1} is empty.`);
+        return onNewGameFailure();
+      }
+      let emailAndNameArray = emailAndName.split("\t");
+      if (emailAndNameArray.length > 2) {
+        alert(`Error creating new game: Line ${line + 1} has too many tabs. Check that you only pasted the email and name columns and that there are no tabs except between the email and name.`);
+        return onNewGameFailure();
+      }
+      if (emailAndNameArray.length === 1) {
+        emailAndNameArray = emailAndName.split(",");
+      }
+      if (emailAndNameArray.length > 2) {
+        alert(`Error creating new game: Line ${line + 1} has too many commas. Check that you only pasted the email and name columns and that there are no commas except between the email and name.`);
+        return onNewGameFailure();
+      }
+      if (emailAndNameArray.length === 1) {
+        alert(`Error creating new game: Line ${line + 1} is missing a comma or tab. Check that you pasted the email and name columns and that the email and name are separated by a comma or tab.`);
+        return onNewGameFailure();
+      }
+      const email = emailAndNameArray[0].trim();
+      const name = emailAndNameArray[1].trim();
+      if (!email) {
+        alert(`Error creating new game: Line ${line + 1} email is empty.`);
+        return onNewGameFailure();
+      }
+      if (!name) {
+        alert(`Error creating new game: Line ${line + 1} name is empty.`);
+        return onNewGameFailure();
+      }
+      if (!email.includes("@") || !email.includes(".")) {
+        alert(`Error creating new game: Line ${line + 1} email is invalid.`);
+        return onNewGameFailure();
+      }
+      if (emailsAndNames[email]) {
+        alert(`Error creating new game: Line ${line + 1} email already exists. Check for duplicate emails.`);
+        return onNewGameFailure();
+      }
+      emailsAndNames[email] = name;
+    }
+    console.log(`Creating new game with name '${newGameName}' and players: `, emailsAndNames);
+
+    httpsCallable(functions, "newGame")({newGameName, emailsAndNames}).catch((error) => {
+      alert("Error creating new game: " + error)
+      console.log(error);
+    }).finally(() => {
+      // @ts-ignore
+      document.getElementById("newGameName").value = "";
+      // @ts-ignore
+      document.getElementById("emailsField").value = "";
+      document.getElementById("newGameForm").style.display = "";
+      document.getElementById("creatingNewGame").style.display = "none";
+    });
+    return false;
+  } catch (error) {
+    alert("Error creating new game: " + error);
     console.log(error);
-  }).finally(() => {
-    document.getElementById("newGameForm").style.display = "";
-    document.getElementById("creatingNewGame").style.display = "none";
-  });
-  return false;
+    return onNewGameFailure();
+  }
 }
 
 /**
@@ -238,4 +317,13 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
     }
   }
   document.getElementById("eliminating").style.display = "none";
+}
+
+/**
+ * Resets the new game form submit button and hides the creating new game message.
+ */
+function onNewGameFailure() {
+  document.getElementById("newGameForm").style.display = "";
+  document.getElementById("creatingNewGame").style.display = "none";
+  return false;
 }
