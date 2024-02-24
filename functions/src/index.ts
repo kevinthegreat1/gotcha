@@ -153,7 +153,10 @@ function eliminateTarget(context: CallableContext, resolve: () => void, reject: 
   const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    getTarget(context, gameName, round, roundDoc, (result: { round: number, targetEmail: string }) => {
+    getTarget(context, gameName, round, roundDoc, (result: { alive: boolean, targetEmail: string }) => {
+      if (!result.alive) {
+        throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
+      }
       roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(resolve);
     }, reject);
   }).catch((error) => {
@@ -216,7 +219,7 @@ exports.newGame = functions.https.onCall((data: {
 }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can start a new game");
     }
 
     admin.auth().getUser(context.auth?.uid).then(async (user) => {
@@ -284,3 +287,55 @@ function shuffleArray(array: unknown[]) {
     [array[i], array[j]] = [array[j], array[i]];
   }
 }
+
+exports.makeAdmin = functions.https.onCall((data: string, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can make admins");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can make admins");
+      }
+
+      admin.auth().setCustomUserClaims(data, {admin: true}).then(() => {
+        resolve();
+      }).catch((error) => {
+        functions.logger.log(error);
+        reject(error);
+      });
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
+exports.removeAdmin = functions.https.onCall((data: string, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can remove admins");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can remove admins");
+      }
+
+      if (data === context.auth?.uid) {
+        throw new functions.https.HttpsError("invalid-argument", "cannot remove yourself as an admin");
+      }
+
+      admin.auth().setCustomUserClaims(data, {admin: false}).then(() => {
+        resolve();
+      }).catch((error) => {
+        functions.logger.log(error);
+        reject(error);
+      });
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});

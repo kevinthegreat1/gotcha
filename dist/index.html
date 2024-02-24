@@ -33,6 +33,21 @@
 </form>
 <h2 id="creatingNewGame" class="admin" style="display:none">Creating New Game...</h2>
 
+<hr class="divider admin" style="display:none">
+<h2 id="adminControls" class="admin" style="display:none">Admin Controls</h2>
+<form id="adminForm" class="admin" style="display:none">
+    <label for="adminUID" class="admin">Set the following UID as admin</label><br>
+    <input type="text" id="adminUID" class="admin"><br>
+    <button id="submitAdmin" class="admin">Make Admin</button>
+</form>
+<div id="makingAdmin" class="admin" style="display:none">Making Admin...</div><br>
+<form id="removeAdminForm" class="admin" style="display:none">
+    <label for="removeAdminUID" class="admin">Remove the following UID as admin</label><br>
+    <input type="text" id="removeAdminUID" class="admin"><br>
+    <button id="submitRemoveAdmin" class="admin">Remove Admin</button>
+</form>
+<div id="removingAdmin" class="admin" style="display:none">Removing Admin...</div>
+
 <b id="credits" style="float:right">Created by Kevin Yang '25</b>
 
 <script src="app.bundle.js"></script>

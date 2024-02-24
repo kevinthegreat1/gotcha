@@ -115,7 +115,7 @@ onAuthStateChanged(auth, user => {
     if (idTokenResult.claims.admin) {
       // @ts-ignore
       for (const adminElement of document.getElementsByClassName("admin")) {
-        if (!adminElement.id.startsWith("creating")) {
+        if (!adminElement.id.startsWith("creating") && !adminElement.id.startsWith("making") && !adminElement.id.startsWith("removing")) {
           adminElement.style.display = "";
         }
       }
@@ -256,8 +256,8 @@ document.getElementById("newGameForm").onsubmit = () => {
     console.log(`Creating new game with name '${newGameName}' and players: `, emailsAndNames);
 
     httpsCallable(functions, "newGame")({newGameName, emailsAndNames}).catch((error) => {
-      alert("Error creating new game: " + error)
       console.log(error);
+      alert("Error creating new game: " + error);
     }).finally(() => {
       // @ts-ignore
       document.getElementById("newGameName").value = "";
@@ -268,8 +268,8 @@ document.getElementById("newGameForm").onsubmit = () => {
     });
     return false;
   } catch (error) {
-    alert("Error creating new game: " + error);
     console.log(error);
+    alert("Error creating new game: " + error);
     return onNewGameFailure();
   }
 }
@@ -296,7 +296,10 @@ function queryAndHandleTarget() {
  * Eliminates the target of the current user, queries the new target of the current user, and updates the UI.
  */
 function eliminateAndHandleTarget() {
-  httpsCallable(functions, "eliminateTarget")();
+  httpsCallable(functions, "eliminateTarget")().catch((error) => {
+    console.log(error);
+    alert("Error eliminating target: " + error);
+  });
 }
 
 /**
@@ -325,5 +328,45 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
 function onNewGameFailure() {
   document.getElementById("newGameForm").style.display = "";
   document.getElementById("creatingNewGame").style.display = "none";
+  return false;
+}
+
+document.getElementById("adminForm").onsubmit = () => {
+  if (!confirm("Are you sure you want to make this user an admin?")) {
+    return false;
+  }
+  document.getElementById("adminForm").style.display = "none";
+  document.getElementById("makingAdmin").style.display = "";
+  // @ts-ignore
+  const uid = document.getElementById("adminUID").value;
+  httpsCallable(functions, "makeAdmin")(uid).then(() => {
+    console.log("Successfully made admin");
+  }).catch((error) => {
+    console.log(error);
+    alert("Error making admin: " + error);
+  }).finally(() => {
+    document.getElementById("adminForm").style.display = "";
+    document.getElementById("makingAdmin").style.display = "none";
+  });
+  return false;
+}
+
+document.getElementById("removeAdminForm").onsubmit = () => {
+  if (!confirm("Are you sure you want to remove this user's admin privileges?")) {
+    return false;
+  }
+  document.getElementById("removeAdminForm").style.display = "none";
+  document.getElementById("removingAdmin").style.display = "";
+  // @ts-ignore
+  const uid = document.getElementById("removeAdminUID").value;
+  httpsCallable(functions, "removeAdmin")(uid).then(() => {
+    console.log("Successfully removed admin");
+  }).catch((error) => {
+    console.log(error);
+    alert("Error removing admin: " + error);
+  }).finally(() => {
+    document.getElementById("removeAdminForm").style.display = "";
+    document.getElementById("removingAdmin").style.display = "none";
+  });
   return false;
 }
