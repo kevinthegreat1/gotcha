@@ -67,7 +67,7 @@ exports.queryTarget = functions.https.onCall((_data, context) => {
     const firestore = admin.firestore();
     getRound(firestore).then(({gameName, gameCollection, round}) => {
       const roundDoc = gameCollection.doc("round" + round);
-      getTarget(context, gameName, round, roundDoc, resolve, reject);
+      getTarget(context, gameName, round, roundDoc, resolve, reject, true);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -83,6 +83,7 @@ exports.queryTarget = functions.https.onCall((_data, context) => {
  * @param {DocumentReference} roundDoc the round document
  * @param {Object} resolve
  * @param {Object} reject
+ * @param {boolean} stats whether to include statistics in the result
  * @return {void}
  */
 function getTarget(context: CallableContext, gameName: string, round: number, roundDoc: DocumentReference, resolve: (value: {
@@ -90,8 +91,9 @@ function getTarget(context: CallableContext, gameName: string, round: number, ro
   round: number,
   alive: boolean,
   targetEmail: string,
-  targetName: string
-}) => void, reject: (value: unknown) => void): void {
+  targetName: string,
+  stats?: { alive: number, eliminated: number, eliminatedThisRound: number }
+}) => void, reject: (value: unknown) => void, stats: boolean): void {
   const email = context.auth?.token.email;
   if (!email) {
     throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
@@ -103,7 +105,11 @@ function getTarget(context: CallableContext, gameName: string, round: number, ro
     }
     const player = game[email];
     if (!player) {
-      resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
+      if (stats) {
+        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: "", stats: getStats(game)});
+      } else {
+        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
+      }
       return;
     }
 
@@ -119,17 +125,37 @@ function getTarget(context: CallableContext, gameName: string, round: number, ro
       }
     }
 
-    resolve({
-      email: email,
-      round: round,
-      alive: player.alive,
-      targetEmail: targetEmail,
-      targetName: target.name,
-    });
+    if (stats) {
+      resolve({
+        email: email,
+        round: round,
+        alive: player.alive,
+        targetEmail: targetEmail,
+        targetName: target.name,
+        stats: getStats(game),
+      });
+    } else {
+      resolve({email: email, round: round, alive: player.alive, targetEmail: targetEmail, targetName: target.name});
+    }
   }).catch((error) => {
     functions.logger.log(error);
     reject(error);
   });
+}
+
+/**
+ * Gets the statistics of the game.
+ * @param {Object.<string, {alive: boolean, name: string, targetEmail: string, wasAlive: boolean}>} game the game object
+ * @return {{alive: number, eliminated: number, eliminatedThisRound: number}} the statistics
+ */
+function getStats(game: {
+  [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean }
+}): { alive: number, eliminated: number, eliminatedThisRound: number } {
+  const emails = Object.keys(game);
+  const alive = emails.filter((email) => game[email].alive).length;
+  const eliminated = emails.filter((email) => !game[email].alive).length;
+  const eliminatedThisRound = emails.filter((email) => !game[email].alive && game[email].wasAlive).length;
+  return {alive, eliminated, eliminatedThisRound};
 }
 
 exports.eliminateTarget = functions.https.onCall((_data, context) => {
@@ -158,12 +184,20 @@ function eliminateTarget(context: CallableContext, resolve: () => void, reject: 
         throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
       }
       roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(resolve);
-    }, reject);
+    }, reject, false);
   }).catch((error) => {
     functions.logger.log(error);
     reject(error);
   });
 }
+
+exports.update = functions.firestore.document("{gameName}/{round}").onUpdate((_change, context) => {
+  if (context.params.round !== "update") {
+    admin.firestore().doc(`${context.params.gameName}/update`).set({time: Date.now()}).catch((error) => {
+      functions.logger.log(error);
+    });
+  }
+});
 
 exports.newRound = functions.https.onCall((_data, context) => {
   return new Promise<void>((resolve, reject) => {
@@ -197,15 +231,8 @@ function newRound(resolve: () => void) {
       if (!data) {
         throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
-      const emails: string[] = data.emails;
-      const newEmails: string[] = [];
-      for (const email of emails) {
-        if (data.game[email].alive) {
-          newEmails.push(email);
-        }
-      }
       const newRoundNumberWrite = gameCollection.doc(info).update({round: round + 1});
-      const newRoundWrite = createNewRound(gameCollection, round + 1, newEmails, data.game);
+      const newRoundWrite = createNewRound(gameCollection, round + 1, data.emails, data.game);
       await newRoundNumberWrite;
       await newRoundWrite;
       resolve();
@@ -241,14 +268,13 @@ exports.newGame = functions.https.onCall((data: {
  * @param {Object.<string, Object>} data the emails and names of the players
  */
 async function newGame(data: { newGameName: string, emailsAndNames: { [email: string]: string } }) {
-  const emails: string[] = [];
-  const names: { [email: string]: { name: string } } = {};
-  for (const [email, name] of Object.entries(data.emailsAndNames)) {
-    emails.push(email);
-    names[email] = {name: name};
+  const emails: string[] = Object.keys(data.emailsAndNames);
+  const names: { [email: string]: { name: string, alive: boolean, wasAlive: boolean } } = {};
+  for (const email of emails) {
+    names[email] = {name: data.emailsAndNames[email], alive: true, wasAlive: true};
   }
   const {newGameName} = data;
-  const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).update({name: newGameName});
+  const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).set({name: newGameName});
   const resetRoundNumberWrite = admin.firestore().collection(newGameName).doc(info).set({round: 1});
   const newRoundWrite = createNewRound(admin.firestore().collection(newGameName), 1, emails, names);
   await newActiveGameNameWrite;
@@ -261,18 +287,23 @@ async function newGame(data: { newGameName: string, emailsAndNames: { [email: st
  * @param {CollectionReference} gameCollection the game collection
  * @param {number} round the round number
  * @param {string[]} emails the emails of the players
- * @param {Object.<string, {name: string}>} names the names of the players
+ * @param {Object.<string, {name: string, alive: boolean}>} names the names of the players
  */
 async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: {
-  [email: string]: { name: string }
+  [email: string]: { name: string, alive: boolean }
 }) {
   const roundDoc = gameCollection.doc("round" + round);
   shuffleArray(emails);
-  const game: { [email: string]: { alive: boolean, name: string, targetEmail: string } } = {};
+  const game: { [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean } } = {};
   for (let i = 0; i < emails.length; i++) {
     const email = emails[i];
     const targetEmail = emails[(i + 1) % emails.length];
-    game[email] = {alive: true, name: names[email].name, targetEmail: targetEmail};
+    game[email] = {
+      alive: names[email].alive,
+      name: names[email].name,
+      targetEmail: targetEmail,
+      wasAlive: names[email].alive,
+    };
   }
   await roundDoc.set({emails: emails, game: game});
 }

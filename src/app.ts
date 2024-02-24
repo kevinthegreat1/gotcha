@@ -5,7 +5,7 @@ import {getAnalytics} from "firebase/analytics";
 // https://firebase.google.com/docs/web/setup#available-libraries
 import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithRedirect, signOut} from "firebase/auth";
-import {doc, getFirestore, onSnapshot, Unsubscribe} from "firebase/firestore";
+import {connectFirestoreEmulator, doc, getFirestore, onSnapshot, Unsubscribe} from "firebase/firestore";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
 const activeGameName = "name"; // The name of the document that stores the name of the active game
@@ -15,8 +15,7 @@ let gameName = "";
 let round = "";
 let isInitialGameSnapshot = true;
 let unsubActiveGameName: Unsubscribe;
-let unsubRound: Unsubscribe;
-let unsubGame: Unsubscribe;
+let unsubUpdate: Unsubscribe;
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -44,6 +43,7 @@ const functions = getFunctions(app);
 
 // Initialize Firestore
 const firestore = getFirestore(app);
+// connectFirestoreEmulator(firestore, "localhost", 8080);
 
 /**
  * Signs in with Google, updates the UI, and queries the target of the current user.
@@ -66,11 +66,8 @@ document.getElementById("signOut").onclick = () => {
   if (unsubActiveGameName) {
     unsubActiveGameName();
   }
-  if (unsubRound) {
-    unsubRound();
-  }
-  if (unsubGame) {
-    unsubGame();
+  if (unsubUpdate) {
+    unsubUpdate();
   }
   signOut(auth).then(() => {
     document.getElementById("signingOut").style.display = "none";
@@ -92,6 +89,10 @@ onAuthStateChanged(auth, user => {
     }
     document.getElementById("eliminate").style.display = "none";
     //@ts-ignore
+    for (const gameElement of document.getElementsByClassName("stats")) {
+      gameElement.style.display = "none";
+    }
+    //@ts-ignore
     for (const gameElement of document.getElementsByClassName("admin")) {
       gameElement.style.display = "none";
     }
@@ -107,10 +108,10 @@ onAuthStateChanged(auth, user => {
   for (const gameElement of document.getElementsByClassName("game")) {
     gameElement.style.display = "";
   }
-  document.getElementById("name").style.display = "";
-  document.getElementById("round").style.display = "";
-  document.getElementById("alive").style.display = "";
-  document.getElementById("target").style.display = "";
+  //@ts-ignore
+  for (const gameElement of document.getElementsByClassName("stats")) {
+    gameElement.style.display = "";
+  }
   user.getIdTokenResult().then(idTokenResult => {
     if (idTokenResult.claims.admin) {
       // @ts-ignore
@@ -130,36 +131,79 @@ onAuthStateChanged(auth, user => {
       return;
     }
     gameName = activeGameNameDoc.data()[activeGameName];
-    if (unsubRound) {
-      unsubRound();
+    if (unsubUpdate) {
+      unsubUpdate();
     }
-    unsubRound = onSnapshot(doc(firestore, gameName, info), (roundDoc) => {
-      if (roundDoc.metadata.hasPendingWrites) {
+    unsubUpdate = onSnapshot(doc(firestore, gameName, "update"), (updateDoc) => {
+      if (updateDoc.metadata.hasPendingWrites) {
         return;
       }
-      round = roundDoc.data()?.round;
-      if (!round) {
-        console.log(`Game '${gameName}' info document not found. Report this to the developer.`);
+      if (isInitialGameSnapshot) {
+        isInitialGameSnapshot = false;
+        return;
       }
-      if (unsubGame) {
-        unsubGame();
-      }
-      unsubGame = onSnapshot(doc(firestore, gameName, "round" + round), (gameDoc) => {
-        if (gameDoc.metadata.hasPendingWrites) {
-          return;
-        }
-        if (isInitialGameSnapshot) {
-          isInitialGameSnapshot = false;
-          return;
-        }
-        queryAndHandleTarget();
-      });
+      queryAndHandleTarget();
     });
   });
 });
 
 /**
- * Eliminates the target of the current user, queries the new target of the current user, and updates the user.
+ * Sends a request to query the target of the current user and updates the UI.
+ */
+function queryAndHandleTarget() {
+  httpsCallable(functions, "queryTarget")().then((result: {
+    data: {
+      email: string,
+      round: number,
+      alive: boolean,
+      targetEmail: string,
+      targetName: string,
+      stats: { alive: number, eliminated: number, eliminatedThisRound: number }
+    }
+  }) => {
+    if (result === null || result.data === null) {
+      console.log("Query target result is null");
+      return;
+    }
+    console.log("Query target result: ", result.data);
+    handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName, result.data.stats);
+  }).catch(error => {
+    console.log(error);
+  });
+}
+
+/**
+ * Updates the UI based on the given parameters.
+ */
+function handleTarget(email: string, round: number, alive: boolean, targetEmail: string, targetName: string, stats: {
+  alive: number,
+  eliminated: number,
+  eliminatedThisRound: number
+}) {
+  document.getElementById("round").innerHTML = "Round #" + round;
+  if (email === targetEmail) {
+    document.getElementById("alive").innerHTML = "Congrats!";
+    document.getElementById("target").innerHTML = "You are the last player alive.";
+  } else {
+    document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
+    if (alive) {
+      document.getElementById("target").innerHTML = "Your target is " + targetName;
+      document.getElementById("eliminate").style.display = "";
+    } else {
+      document.getElementById("target").innerHTML = "Thanks for playing!";
+    }
+  }
+  document.getElementById("eliminating").style.display = "none";
+
+  if (stats) {
+    document.getElementById("aliveStats").innerHTML = `Players Alive: ${stats.alive}`;
+    document.getElementById("eliminatedStats").innerHTML = `Players Out: ${stats.eliminated}`;
+    document.getElementById("eliminatedThisRoundStats").innerHTML = `Players Eliminated This Round: ${stats.eliminatedThisRound}`;
+  }
+}
+
+/**
+ * Sends a request to eliminate the target of the current user.
  */
 document.getElementById("eliminate").onclick = () => {
   if (!confirm("Are you sure you want to eliminate your target?")) {
@@ -167,25 +211,41 @@ document.getElementById("eliminate").onclick = () => {
   }
   document.getElementById("eliminate").style.display = "none";
   document.getElementById("eliminating").style.display = "";
-  eliminateAndHandleTarget();
+  eliminateTarget();
 }
 
-document.getElementById("newRound").onclick = () => {
+/**
+ * Sends a request to eliminate the target of the current user.
+ */
+function eliminateTarget() {
+  httpsCallable(functions, "eliminateTarget")().catch((error) => {
+    console.log(error);
+    alert("Error eliminating target: " + error);
+  });
+}
+
+/**
+ * Sends a request to create a new round.
+ */
+document.getElementById("newRoundButton").onclick = () => {
   if (!confirm("Are you sure you want to finish this round and start the next round?")) {
     return;
   }
-  document.getElementById("newRound").style.display = "none";
+  document.getElementById("newRoundButton").style.display = "none";
   document.getElementById("creatingNewRound").style.display = "";
   const newRound = httpsCallable(functions, "newRound");
   newRound().catch((error) => {
     alert("Error creating new round: " + error)
     console.log(error);
   }).finally(() => {
-    document.getElementById("newRound").style.display = "";
+    document.getElementById("newRoundButton").style.display = "";
     document.getElementById("creatingNewRound").style.display = "none";
   });
 }
 
+/**
+ * Sends a request to create a new game.
+ */
 document.getElementById("newGameForm").onsubmit = () => {
   document.getElementById("newGameForm").style.display = "none";
   document.getElementById("creatingNewGame").style.display = "";
@@ -272,54 +332,6 @@ document.getElementById("newGameForm").onsubmit = () => {
     alert("Error creating new game: " + error);
     return onNewGameFailure();
   }
-}
-
-/**
- * Queries the target of the current user and updates the UI.
- */
-function queryAndHandleTarget() {
-  httpsCallable(functions, "queryTarget")().then((result: {
-    data: { email: string, round: number, alive: boolean, targetEmail: string, targetName: string }
-  }) => {
-    if (result === null || result.data === null) {
-      console.log("Query target result is null");
-      return;
-    }
-    console.log("Query target result: ", result.data);
-    handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName)
-  }).catch(error => {
-    console.log(error);
-  });
-}
-
-/**
- * Eliminates the target of the current user, queries the new target of the current user, and updates the UI.
- */
-function eliminateAndHandleTarget() {
-  httpsCallable(functions, "eliminateTarget")().catch((error) => {
-    console.log(error);
-    alert("Error eliminating target: " + error);
-  });
-}
-
-/**
- * Updates the UI based on the given parameters.
- */
-function handleTarget(email: string, round: number, alive: boolean, targetEmail: string, targetName: string) {
-  document.getElementById("round").innerHTML = "Round #" + round;
-  if (email === targetEmail) {
-    document.getElementById("alive").innerHTML = "Congrats!"
-    document.getElementById("target").innerHTML = "You are the last player alive.";
-  } else {
-    document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
-    if (alive) {
-      document.getElementById("target").innerHTML = "Your target is " + targetName;
-      document.getElementById("eliminate").style.display = "";
-    } else {
-      document.getElementById("target").innerHTML = "Thanks for playing!";
-    }
-  }
-  document.getElementById("eliminating").style.display = "none";
 }
 
 /**
