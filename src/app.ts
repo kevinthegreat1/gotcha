@@ -79,6 +79,7 @@ document.getElementById("signOut").onclick = () => {
 onAuthStateChanged(auth, user => {
   if (!user) {
     console.log("Auth state changed to null. Most likely the user signed out.");
+    document.getElementById("signInTitle").style.display = "";
     document.getElementById("signIn").style.display = "";
     document.getElementById("signingIn").style.display = "none";
     document.getElementById("signOut").style.visibility = "hidden";
@@ -100,6 +101,7 @@ onAuthStateChanged(auth, user => {
   }
   const name = user.displayName;
   document.getElementById("name").innerHTML += name;
+  document.getElementById("signInTitle").style.display = "none";
   document.getElementById("signIn").style.display = "none";
   document.getElementById("signingIn").style.display = "none";
   document.getElementById("signOut").style.visibility = "";

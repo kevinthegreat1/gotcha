@@ -5,58 +5,65 @@
     <title>Gotcha</title>
     <link href="./output.css" rel="stylesheet">
 </head>
-<body>
-<div style="text-align:right">
-    <button id="signOut" style="visibility:hidden">Sign Out</button>
+
+<body class="bg-green-200">
+<div class="flex flex-col h-dvh justify-between">
+    <button id="signOut" class="self-end mt-2 mx-5 px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="visibility:hidden">Sign Out</button>
+    <h1 id="signInTitle" class="self-center text-3xl font-medium">Gotcha!</h1>
+    <button id="signIn" class="self-center px-5 py-2 rounded-3xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100">Sign In</button>
+    <h2 id="signingIn" class="self-center text-2xl" style="display:none">Signing In...</h2>
+    <h2 id="signingOut" class="self-center text-2xl" style="display:none">Signing Out...</h2>
+    <div class="game grow overflow-auto px-5" style="display:none">
+        <div class="flex flex-col min-h-full justify-evenly items-start space-y-2">
+            <h1 class="game self-center text-3xl font-medium" style="display:none">Gotcha!</h1>
+            <hr class="divider" style="display:none">
+            <h2 id="name" class="game self-center text-2xl" style="display:none">Hello </h2>
+            <h2 id="round" class="game self-center text-2xl" style="display:none">Round #</h2>
+            <h2 id="alive" class="game self-center text-2xl" style="display:none">You are </h2>
+            <h2 id="target" class="game self-center text-2xl" style="display:none">Your target is </h2>
+            <button id="eliminate" class="self-center px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">Eliminate Target</button>
+            <h2 id="eliminating" class="self-center" style="display:none">Eliminating Target...</h2>
+
+            <hr class="divider stats" style="display:none">
+            <h2 class="stats text-2xl" style="display:none">Statistics</h2>
+            <h3 id="aliveStats" class="stats text-xl" style="display:none">Players Alive: </h3>
+            <h3 id="eliminatedStats" class="stats text-xl" style="display:none">Players Out: </h3>
+            <h3 id="eliminatedThisRoundStats" class="stats text-xl" style="display:none">Players Eliminated This Round: </h3>
+
+            <hr class="divider admin" style="display:none">
+            <h2 id="newRound" class="admin text-2xl" style="display:none">Start a new round</h2>
+            <button id="newRoundButton" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">New Round</button>
+            <h2 id="creatingNewRound" class="admin text-2xl" style="display:none">Creating New Round...</h2>
+            <hr class="divider admin" style="display:none">
+            <h2 id="newGame" class="admin text-2xl" style="display:none">Start a new game</h2>
+            <form id="newGameForm" class="admin space-y-2" style="display:none">
+                <label for="newGameName" class="admin">Enter a name for the new game</label><br>
+                <input type="text" id="newGameName" class="admin bg-green-50"><br><br>
+                <label for="emailsField" class="admin">Enter emails and names here with one email and name on each line, separated by a comma or a tab. Pasting from Google Sheets should work.</label><br>
+                <textarea id="emailsField" class="admin bg-green-50"></textarea><br>
+                <button id="submit" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100">New Game</button>
+            </form>
+            <h2 id="creatingNewGame" class="admin text-2xl" style="display:none">Creating New Game...</h2>
+
+            <hr class="divider admin" style="display:none">
+            <h2 id="adminControls" class="admin text-2xl" style="display:none">Admin Controls</h2>
+            <form id="adminForm" class="admin space-y-2" style="display:none">
+                <label for="adminUID" class="admin">Set the following UID as admin</label><br>
+                <input type="text" id="adminUID" class="admin bg-green-50"><br>
+                <button id="submitAdmin" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100">Make Admin</button>
+            </form>
+            <div id="makingAdmin" class="admin" style="display:none">Making Admin...</div><br>
+            <form id="removeAdminForm" class="admin space-y-2" style="display:none">
+                <label for="removeAdminUID" class="admin">Remove the following UID as admin</label><br>
+                <input type="text" id="removeAdminUID" class="admin bg-green-50"><br>
+                <button id="submitRemoveAdmin" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100">Remove Admin</button>
+            </form>
+            <div id="removingAdmin" class="admin" style="display:none">Removing Admin...</div>
+        </div>
+    </div>
+
+    <b id="credits" class="self-end mb-2 mx-5">Created by Kevin Yang '25</b>
 </div>
-<h1 style="text-align:center">Gotcha!</h1>
-<button id="signIn" style="text-align:center">Sign In</button>
-<h2 id="signingIn" style="text-align:center; display:none">Signing In...</h2>
-<h2 id="signingOut" style="text-align:center; display:none">Signing Out...</h2>
-<h2 id="name" class="game" style="text-align:center; display:none">Hello </h2>
-<h2 id="round" class="game" style="text-align:center; display:none">Round #</h2>
-<h2 id="alive" class="game" style="text-align:center; display:none">You are </h2>
-<h2 id="target" class="game" style="text-align:center; display:none">Your target is </h2>
-<button id="eliminate" style="text-align:center; display:none">Eliminate Target</button>
-<h2 id="eliminating" style="text-align:center; display:none">Eliminating Target...</h2>
-
-<hr class="divider stats" style="display:none">
-<h2 class="stats" style="display:none">Statistics</h2>
-<h3 id="aliveStats" class="stats" style="display:none">Players Alive: </h3>
-<h3 id="eliminatedStats" class="stats" style="display:none">Players Out: </h3>
-<h3 id="eliminatedThisRoundStats" class="stats" style="display:none">Players Eliminated This Round: </h3>
-
-<hr class="divider admin" style="display:none">
-<h2 id="newRound" class="admin" style="display:none">Start a new round</h2>
-<button id="newRoundButton" class="admin" style="display:none">New Round</button>
-<h2 id="creatingNewRound" class="admin" style="display:none">Creating New Round...</h2>
-<hr class="divider admin" style="display:none">
-<h2 id="newGame" class="admin" style="display:none">Start a new game</h2>
-<form id="newGameForm" class="admin" style="display:none">
-    <label for="newGameName" class="admin">Enter a name for the new game</label><br>
-    <input type="text" id="newGameName" class="admin"><br><br>
-    <label for="emailsField" class="admin">Enter emails and names here with one email and name on each line, separated by a comma or a tab. Pasting from Google Sheets should work.</label><br>
-    <textarea id="emailsField" class="admin"></textarea><br>
-    <button id="submit" class="admin">New Game</button>
-</form>
-<h2 id="creatingNewGame" class="admin" style="display:none">Creating New Game...</h2>
-
-<hr class="divider admin" style="display:none">
-<h2 id="adminControls" class="admin" style="display:none">Admin Controls</h2>
-<form id="adminForm" class="admin" style="display:none">
-    <label for="adminUID" class="admin">Set the following UID as admin</label><br>
-    <input type="text" id="adminUID" class="admin"><br>
-    <button id="submitAdmin" class="admin">Make Admin</button>
-</form>
-<div id="makingAdmin" class="admin" style="display:none">Making Admin...</div><br>
-<form id="removeAdminForm" class="admin" style="display:none">
-    <label for="removeAdminUID" class="admin">Remove the following UID as admin</label><br>
-    <input type="text" id="removeAdminUID" class="admin"><br>
-    <button id="submitRemoveAdmin" class="admin">Remove Admin</button>
-</form>
-<div id="removingAdmin" class="admin" style="display:none">Removing Admin...</div>
-
-<b id="credits" style="float:right">Created by Kevin Yang '25</b>
 
 <script src="app.bundle.js"></script>
 </body>
