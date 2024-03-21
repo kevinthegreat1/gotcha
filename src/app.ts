@@ -101,19 +101,11 @@ onAuthStateChanged(auth, user => {
   }
   const name = user.displayName;
   document.getElementById("name").innerHTML += name;
-  document.getElementById("signInTitle").style.display = "none";
   document.getElementById("signIn").style.display = "none";
   document.getElementById("signingIn").style.display = "none";
   document.getElementById("signOut").style.visibility = "";
   document.getElementById("signingOut").style.display = "none";
-  //@ts-ignore
-  for (const gameElement of document.getElementsByClassName("game")) {
-    gameElement.style.display = "";
-  }
-  //@ts-ignore
-  for (const gameElement of document.getElementsByClassName("stats")) {
-    gameElement.style.display = "";
-  }
+  document.getElementById("loading").style.display = "";
   user.getIdTokenResult().then(idTokenResult => {
     if (idTokenResult.claims.admin) {
       // @ts-ignore
@@ -182,6 +174,17 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
   eliminated: number,
   eliminatedThisRound: number
 }) {
+  document.getElementById("signInTitle").style.display = "none";
+  document.getElementById("loading").style.display = "none";
+  //@ts-ignore
+  for (const gameElement of document.getElementsByClassName("game")) {
+    gameElement.style.display = "";
+  }
+  //@ts-ignore
+  for (const statsElement of document.getElementsByClassName("stats")) {
+    statsElement.style.display = "";
+  }
+
   document.getElementById("round").innerHTML = "Round #" + round;
   if (email === targetEmail) {
     document.getElementById("alive").innerHTML = "Congrats!";
