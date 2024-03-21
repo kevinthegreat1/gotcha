@@ -16,7 +16,7 @@
     <div class="game grow overflow-auto px-5" style="display:none">
         <div class="flex flex-col min-h-full justify-evenly items-start space-y-2">
             <h1 class="game self-center text-3xl font-medium" style="display:none">Gotcha!</h1>
-            <hr class="divider" style="display:none">
+            <hr class="divider game w-full border-green-700" style="display:none">
             <h2 id="name" class="game self-center text-2xl" style="display:none">Hello </h2>
             <h2 id="round" class="game self-center text-2xl" style="display:none">Round #</h2>
             <h2 id="alive" class="game self-center text-2xl" style="display:none">You are </h2>
@@ -24,17 +24,17 @@
             <button id="eliminate" class="self-center px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">Eliminate Target</button>
             <h2 id="eliminating" class="self-center" style="display:none">Eliminating Target...</h2>
 
-            <hr class="divider stats" style="display:none">
+            <hr class="divider stats w-full border-green-700" style="display:none">
             <h2 class="stats text-2xl" style="display:none">Statistics</h2>
             <h3 id="aliveStats" class="stats text-xl" style="display:none">Players Alive: </h3>
             <h3 id="eliminatedStats" class="stats text-xl" style="display:none">Players Out: </h3>
             <h3 id="eliminatedThisRoundStats" class="stats text-xl" style="display:none">Players Eliminated This Round: </h3>
 
-            <hr class="divider admin" style="display:none">
+            <hr class="divider admin w-full border-green-700" style="display:none">
             <h2 id="newRound" class="admin text-2xl" style="display:none">Start a new round</h2>
             <button id="newRoundButton" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">New Round</button>
             <h2 id="creatingNewRound" class="admin text-2xl" style="display:none">Creating New Round...</h2>
-            <hr class="divider admin" style="display:none">
+            <hr class="divider admin w-full border-green-700" style="display:none">
             <h2 id="newGame" class="admin text-2xl" style="display:none">Start a new game</h2>
             <form id="newGameForm" class="admin space-y-2" style="display:none">
                 <label for="newGameName" class="admin">Enter a name for the new game</label><br>
@@ -45,7 +45,7 @@
             </form>
             <h2 id="creatingNewGame" class="admin text-2xl" style="display:none">Creating New Game...</h2>
 
-            <hr class="divider admin" style="display:none">
+            <hr class="divider admin w-full border-green-700" style="display:none">
             <h2 id="adminControls" class="admin text-2xl" style="display:none">Admin Controls</h2>
             <form id="adminForm" class="admin space-y-2" style="display:none">
                 <label for="adminUID" class="admin">Set the following UID as admin</label><br>
