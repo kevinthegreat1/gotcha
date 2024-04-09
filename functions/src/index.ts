@@ -197,9 +197,10 @@ exports.update = functions.firestore.document("{gameName}/{round}").onUpdate((_c
       functions.logger.log(error);
     });
   }
+  return null;
 });
 
-exports.newRound = functions.https.onCall((_data, context) => {
+exports.newRound = functions.https.onCall((data: { randomize: boolean }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -210,7 +211,7 @@ exports.newRound = functions.https.onCall((_data, context) => {
         throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
       }
 
-      newRound(resolve);
+      newRound(resolve, data.randomize);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -221,8 +222,9 @@ exports.newRound = functions.https.onCall((_data, context) => {
 /**
  * Creates a new round with the surviving players and increments {@link round}.
  * @param {function(void):void} resolve the function to call to resolve the promise
+ * @param {boolean} randomize whether to randomize the order of the players
  */
-function newRound(resolve: () => void) {
+function newRound(resolve: () => void, randomize: boolean) {
   const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
@@ -232,7 +234,7 @@ function newRound(resolve: () => void) {
         throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
       const newRoundNumberWrite = gameCollection.doc(info).update({round: round + 1});
-      const newRoundWrite = createNewRound(gameCollection, round + 1, data.emails, data.game);
+      const newRoundWrite = createNewRound(gameCollection, round + 1, data.emails, data.game, randomize);
       await newRoundNumberWrite;
       await newRoundWrite;
       resolve();
@@ -242,7 +244,8 @@ function newRound(resolve: () => void) {
 
 exports.newGame = functions.https.onCall((data: {
   newGameName: string,
-  emailsAndNames: { [email: string]: string }
+  emailsAndNames: { [email: string]: string },
+  randomize: boolean
 }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
@@ -267,16 +270,16 @@ exports.newGame = functions.https.onCall((data: {
  * Creates a new game with the given emails and names. Updates the active game and sets round to 1.
  * @param {Object.<string, Object>} data the emails and names of the players
  */
-async function newGame(data: { newGameName: string, emailsAndNames: { [email: string]: string } }) {
+async function newGame(data: { newGameName: string, emailsAndNames: { [email: string]: string }, randomize: boolean }) {
   const emails: string[] = Object.keys(data.emailsAndNames);
   const names: { [email: string]: { name: string, alive: boolean, wasAlive: boolean } } = {};
   for (const email of emails) {
     names[email] = {name: data.emailsAndNames[email], alive: true, wasAlive: true};
   }
-  const {newGameName} = data;
+  const {newGameName, randomize} = data;
   const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).set({name: newGameName});
   const resetRoundNumberWrite = admin.firestore().collection(newGameName).doc(info).set({round: 1});
-  const newRoundWrite = createNewRound(admin.firestore().collection(newGameName), 1, emails, names);
+  const newRoundWrite = createNewRound(admin.firestore().collection(newGameName), 1, emails, names, randomize);
   await newActiveGameNameWrite;
   await resetRoundNumberWrite;
   await newRoundWrite;
@@ -288,12 +291,15 @@ async function newGame(data: { newGameName: string, emailsAndNames: { [email: st
  * @param {number} round the round number
  * @param {string[]} emails the emails of the players
  * @param {Object.<string, {name: string, alive: boolean}>} names the names of the players
+ * @param {boolean} randomize whether to randomize the order of the players
  */
 async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: {
   [email: string]: { name: string, alive: boolean }
-}) {
+}, randomize: boolean) {
   const roundDoc = gameCollection.doc("round" + round);
-  shuffleArray(emails);
+  if (randomize) {
+    shuffleArray(emails);
+  }
   const game: { [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean } } = {};
   for (let i = 0; i < emails.length; i++) {
     const email = emails[i];

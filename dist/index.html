@@ -33,6 +33,9 @@
 
             <hr class="divider admin w-full border-green-700" style="display:none">
             <h2 id="newRound" class="admin text-2xl" style="display:none">Start a new round</h2>
+            <div class="admin" style="display:none">
+                <input type="checkbox" id="newRoundRandomize" class="admin bg-green-50"> Randomize players<br>
+            </div>
             <button id="newRoundButton" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">New Round</button>
             <h2 id="creatingNewRound" class="admin text-2xl" style="display:none">Creating New Round...</h2>
             <hr class="divider admin w-full border-green-700" style="display:none">
@@ -41,7 +44,8 @@
                 <label for="newGameName" class="admin">Enter a name for the new game</label><br>
                 <input type="text" id="newGameName" class="admin bg-green-50"><br><br>
                 <label for="emailsField" class="admin">Enter emails and names here with one email and name on each line, separated by a comma or a tab. Pasting from Google Sheets should work.</label><br>
-                <textarea id="emailsField" class="admin bg-green-50"></textarea><br>
+                <textarea id="emailsField" class="admin bg-green-50"></textarea><br><br>
+                <input type="checkbox" id="newGameRandomize" class="admin bg-green-50"> Randomize players<br>
                 <button id="submit" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100">New Game</button>
             </form>
             <h2 id="creatingNewGame" class="admin text-2xl" style="display:none">Creating New Game...</h2>

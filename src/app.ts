@@ -236,10 +236,15 @@ document.getElementById("newRoundButton").onclick = () => {
   if (!confirm("Are you sure you want to finish this round and start the next round?")) {
     return;
   }
+  // @ts-ignore
+  const randomize: boolean = document.getElementById("newRoundRandomize").checked;
+  if (!confirm(`Creating a new round with randomization ${randomize}. Confirm the randomization is correct.`)) {
+    return;
+  }
   document.getElementById("newRoundButton").style.display = "none";
   document.getElementById("creatingNewRound").style.display = "";
   const newRound = httpsCallable(functions, "newRound");
-  newRound().catch((error) => {
+  newRound({randomize}).catch((error) => {
     alert("Error creating new round: " + error)
     console.log(error);
   }).finally(() => {
@@ -263,12 +268,17 @@ document.getElementById("newGameForm").onsubmit = () => {
     const newGameName: string = document.getElementById("newGameName").value;
     // @ts-ignore
     const emailsAndNamesString: string = document.getElementById("emailsField").value;
+    // @ts-ignore
+    const randomize: boolean = document.getElementById("newGameRandomize").checked;
     if (!newGameName) {
       alert("Error creating new game: Game name is empty.");
       return onNewGameFailure();
     }
     if (!emailsAndNamesString) {
       alert("Error creating new game: Emails and names are empty.");
+      return onNewGameFailure();
+    }
+    if (!confirm(`Creating a new game with randomization ${randomize}. Confirm the randomization is correct.`)) {
       return onNewGameFailure();
     }
     const emailsAndNamesArray = emailsAndNamesString.split("\n");
@@ -320,7 +330,7 @@ document.getElementById("newGameForm").onsubmit = () => {
     }
     console.log(`Creating new game with name '${newGameName}' and players: `, emailsAndNames);
 
-    httpsCallable(functions, "newGame")({newGameName, emailsAndNames}).catch((error) => {
+    httpsCallable(functions, "newGame")({newGameName, emailsAndNames, randomize}).catch((error) => {
       console.log(error);
       alert("Error creating new game: " + error);
     }).finally(() => {
