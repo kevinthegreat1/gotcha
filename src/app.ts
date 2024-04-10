@@ -117,6 +117,7 @@ onAuthStateChanged(auth, user => {
     }
   });
   queryAndHandleTarget();
+  queryAndHandlePendingEliminations();
   if (unsubActiveGameName) {
     unsubActiveGameName();
   }
@@ -137,6 +138,7 @@ onAuthStateChanged(auth, user => {
         return;
       }
       queryAndHandleTarget();
+      queryAndHandlePendingEliminations();
     });
   });
 });
@@ -234,6 +236,60 @@ function eliminateTarget() {
   httpsCallable(functions, "eliminateTarget")().catch((error) => {
     console.log(error);
     alert("Error eliminating target: " + error);
+  });
+}
+
+/**
+ * Sends a request to query pending eliminations and updates the UI.
+ */
+function queryAndHandlePendingEliminations() {
+  httpsCallable(functions, "getPendingEliminations")().then((result: {
+    data: { [email: string]: { name: string, time: number, targetEmail: string, targetName: string } }
+  }) => {
+    const pendingEliminationsDiv = document.getElementById("pendingEliminations");
+    pendingEliminationsDiv.replaceChildren();
+    for (const email in result.data) {
+      const pendingElimination = result.data[email];
+      const pendingEliminationDiv = document.createElement("div");
+      pendingEliminationDiv.innerHTML = `${pendingElimination.name} (${email}) wants to eliminate ${pendingElimination.targetName} (${pendingElimination.targetEmail}) at ${new Date(pendingElimination.time).toLocaleString()} `;
+
+      const confirmEliminationButton = document.createElement("button");
+      const cancelEliminationButton = document.createElement("button");
+
+      confirmEliminationButton.setAttribute("class", "px-2 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100")
+      confirmEliminationButton.innerHTML = "Confirm Elimination";
+      confirmEliminationButton.onclick = () => {
+        if (!confirm("Are you sure you want to confirm this elimination?")) {
+          return;
+        }
+        confirmEliminationButton.style.display = "none";
+        cancelEliminationButton.style.display = "none";
+        httpsCallable(functions, "confirmEliminateTarget")({email}).catch((error) => {
+          console.log(error);
+          alert("Error confirming elimination: " + error);
+        });
+      }
+      pendingEliminationDiv.appendChild(confirmEliminationButton);
+
+      cancelEliminationButton.setAttribute("class", "mx-1 px-2 rounded-2xl bg-red-600 hover:bg-red-700 focus:bg-red-700 active:bg-red-800 text-red-100")
+      cancelEliminationButton.innerHTML = "Cancel Elimination";
+      cancelEliminationButton.onclick = () => {
+        if (!confirm("Are you sure you want to cancel this elimination?")) {
+          return;
+        }
+        confirmEliminationButton.style.display = "none";
+        cancelEliminationButton.style.display = "none";
+        httpsCallable(functions, "cancelEliminateTarget")({email}).catch((error) => {
+          console.log(error);
+          alert("Error canceling elimination: " + error);
+        });
+      }
+      pendingEliminationDiv.appendChild(cancelEliminationButton);
+
+      pendingEliminationsDiv.appendChild(pendingEliminationDiv);
+    }
+  }).catch((error) => {
+    console.log(error);
   });
 }
 

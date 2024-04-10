@@ -120,17 +120,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
       return;
     }
 
-    let target = game[player.targetEmail];
-    let targetEmail = player.targetEmail;
-    // Loop until the target is alive
-    while (!target.alive) {
-      // Break the loop if the target is the player
-      targetEmail = target.targetEmail;
-      target = game[targetEmail];
-      if (targetEmail === email) {
-        break;
-      }
-    }
+    const {targetEmail, target} = getTargetInternal(game, email);
 
     if (stats) {
       resolve({
@@ -156,6 +146,33 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
     functions.logger.log(error);
     reject(error);
   });
+}
+
+/**
+ * Gets the target of the provided email in the provided game.
+ * @param {Object.<string, {alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number}>} game the game object
+ * @param {string} email the email of the player
+ * @return {{target: {alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number}, targetEmail: string}} the target and the target's email
+ */
+function getTargetInternal(game: {
+  [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number }
+}, email: string): {
+  target: { alive: boolean; name: string; targetEmail: string; wasAlive: boolean; eliminating: number; };
+  targetEmail: string;
+} {
+  const player = game[email];
+  let targetEmail = player.targetEmail;
+  let target = game[targetEmail];
+  // Loop until the target is alive
+  while (!target.alive) {
+    // Break the loop if the target is the player
+    targetEmail = target.targetEmail;
+    target = game[targetEmail];
+    if (targetEmail === email) {
+      break;
+    }
+  }
+  return {targetEmail, target};
 }
 
 /**
@@ -218,10 +235,70 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
   });
 }
 
+exports.getPendingEliminations = functions.https.onCall((_data, context) => {
+  return new Promise((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can get pending eliminations");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can get pending eliminations");
+      }
+
+      getPendingEliminations(resolve, reject);
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
+/**
+ * Gets the pending eliminations.
+ * @param {Object} resolve
+ * @param {Object} reject
+ */
+function getPendingEliminations(resolve: (value: {
+  [email: string]: { name: string, time: number, targetEmail: string, targetName: string }
+}) => void, reject: (value: unknown) => void): void {
+  const firestore = admin.firestore();
+  getRound(firestore).then(({gameName, gameCollection, round}) => {
+    const roundDoc = gameCollection.doc("round" + round);
+    roundDoc.get().then((roundDocSnapshot) => {
+      const game = roundDocSnapshot?.data()?.game;
+      if (!game) {
+        throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+      }
+      const emails = Object.keys(game);
+      emails.sort((a, b) => game[a].eliminating - game[b].eliminating);
+      const pendingEliminations: {
+        [email: string]: { name: string, time: number, targetEmail: string, targetName: string }
+      } = {};
+      for (const email of emails) {
+        const player = game[email];
+        if (player.alive && player.eliminating) {
+          const {targetEmail, target} = getTargetInternal(game, email);
+          pendingEliminations[email] = {
+            name: player.name,
+            time: player.eliminating,
+            targetEmail: targetEmail,
+            targetName: target.name,
+          };
+        }
+      }
+      resolve(pendingEliminations);
+    });
+  }).catch((error) => {
+    functions.logger.log(error);
+    reject(error);
+  });
+}
+
 exports.confirmEliminateTarget = functions.https.onCall((data: { email: string }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can confirm eliminations");
     }
 
     admin.auth().getUser(context.auth?.uid).then(async (user) => {
@@ -238,7 +315,7 @@ exports.confirmEliminateTarget = functions.https.onCall((data: { email: string }
 });
 
 /**
- * Eliminates the target of the current user.
+ * Confirms the elimination the target of the current user.
  * @param {string} email the email of the current user
  * @param {Object} resolve
  * @param {Object} reject
@@ -248,12 +325,53 @@ function confirmEliminateTarget(email: string, resolve: () => void, reject: (val
   const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    getTarget(gameName, round, roundDoc, email, (result: { alive: boolean, targetEmail: string }) => {
+    getTarget(gameName, round, roundDoc, email, async (result: { alive: boolean, targetEmail: string }) => {
       if (!result.alive) {
         throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
       }
-      roundDoc.update({game: {[email]: {eliminating: 0}, [result.targetEmail]: {alive: false}}}).then(resolve);
+      const eliminatingResetWrite = roundDoc.update(new FieldPath("game", email, "eliminating"), 0);
+      const eliminateWrite = roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false);
+      await eliminatingResetWrite;
+      await eliminateWrite;
+      resolve();
     }, reject, false);
+  }).catch((error) => {
+    functions.logger.log(error);
+    reject(error);
+  });
+}
+
+exports.cancelEliminateTarget = functions.https.onCall((data: { email: string }, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can cancel eliminations");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can cancel eliminations");
+      }
+
+      cancelEliminateTarget(data.email, resolve, reject);
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
+/**
+ * Cancels the elimination of the target of the current user.
+ * @param {string} email the email of the current user
+ * @param {Object} resolve
+ * @param {Object} reject
+ * @return {void}
+ */
+function cancelEliminateTarget(email: string, resolve: () => void, reject: (value: unknown) => void): void {
+  const firestore = admin.firestore();
+  getRound(firestore).then(({gameCollection, round}) => {
+    const roundDoc = gameCollection.doc("round" + round);
+    roundDoc.update(new FieldPath("game", email, "eliminating"), 0).then(resolve);
   }).catch((error) => {
     functions.logger.log(error);
     reject(error);
