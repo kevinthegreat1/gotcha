@@ -192,11 +192,14 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
   if (email === targetEmail) {
     document.getElementById("alive").innerHTML = "Congrats!";
     document.getElementById("target").innerHTML = "You are the last player alive.";
+    document.getElementById("eliminate").style.display = "none";
     document.getElementById("eliminating").style.display = "none";
+    document.getElementById("appeal").style.display = "none";
   } else {
     document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
     if (alive) {
       document.getElementById("target").innerHTML = "Your target is " + targetName;
+      document.getElementById("appeal").style.display = "none";
       if (eliminating) {
         document.getElementById("eliminate").style.display = "none";
         document.getElementById("eliminating").style.display = "";
@@ -206,7 +209,9 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
       }
     } else {
       document.getElementById("target").innerHTML = "Thanks for playing!";
+      document.getElementById("eliminate").style.display = "none";
       document.getElementById("eliminating").style.display = "none";
+      document.getElementById("appeal").style.display = "";
     }
   }
 
@@ -256,7 +261,7 @@ function queryAndHandlePendingEliminations() {
       const confirmEliminationButton = document.createElement("button");
       const cancelEliminationButton = document.createElement("button");
 
-      confirmEliminationButton.setAttribute("class", "px-2 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100")
+      confirmEliminationButton.setAttribute("class", "mx-1 px-2 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100")
       confirmEliminationButton.innerHTML = "Confirm Elimination";
       confirmEliminationButton.onclick = () => {
         if (!confirm("Are you sure you want to confirm this elimination?")) {
