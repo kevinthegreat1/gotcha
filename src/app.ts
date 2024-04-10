@@ -152,6 +152,7 @@ function queryAndHandleTarget() {
       alive: boolean,
       targetEmail: string,
       targetName: string,
+      eliminating: number,
       stats: { alive: number, eliminated: number, eliminatedThisRound: number }
     }
   }) => {
@@ -160,7 +161,7 @@ function queryAndHandleTarget() {
       return;
     }
     console.log("Query target result: ", result.data);
-    handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName, result.data.stats);
+    handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName, result.data.eliminating, result.data.stats);
   }).catch(error => {
     console.log(error);
   });
@@ -169,7 +170,7 @@ function queryAndHandleTarget() {
 /**
  * Updates the UI based on the given parameters.
  */
-function handleTarget(email: string, round: number, alive: boolean, targetEmail: string, targetName: string, stats: {
+function handleTarget(email: string, round: number, alive: boolean, targetEmail: string, targetName: string, eliminating: number, stats: {
   alive: number,
   eliminated: number,
   eliminatedThisRound: number
@@ -189,16 +190,23 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
   if (email === targetEmail) {
     document.getElementById("alive").innerHTML = "Congrats!";
     document.getElementById("target").innerHTML = "You are the last player alive.";
+    document.getElementById("eliminating").style.display = "none";
   } else {
     document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
     if (alive) {
       document.getElementById("target").innerHTML = "Your target is " + targetName;
-      document.getElementById("eliminate").style.display = "";
+      if (eliminating) {
+        document.getElementById("eliminate").style.display = "none";
+        document.getElementById("eliminating").style.display = "";
+      } else {
+        document.getElementById("eliminate").style.display = "";
+        document.getElementById("eliminating").style.display = "none";
+      }
     } else {
       document.getElementById("target").innerHTML = "Thanks for playing!";
+      document.getElementById("eliminating").style.display = "none";
     }
   }
-  document.getElementById("eliminating").style.display = "none";
 
   if (stats) {
     document.getElementById("aliveStats").innerHTML = `Players Alive: ${stats.alive}`;

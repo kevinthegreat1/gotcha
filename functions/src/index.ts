@@ -2,7 +2,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import {CollectionReference, DocumentReference, FieldPath, Firestore} from "firebase-admin/firestore";
-import {CallableContext} from "firebase-functions/lib/common/providers/https";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
 const activeGameName = "name"; // The name of the document that stores the name of the active game
@@ -67,7 +66,7 @@ exports.queryTarget = functions.https.onCall((_data, context) => {
     const firestore = admin.firestore();
     getRound(firestore).then(({gameName, gameCollection, round}) => {
       const roundDoc = gameCollection.doc("round" + round);
-      getTarget(context, gameName, round, roundDoc, resolve, reject, true);
+      getTarget(gameName, round, roundDoc, context.auth?.token.email, resolve, reject, true);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -77,24 +76,24 @@ exports.queryTarget = functions.https.onCall((_data, context) => {
 
 /**
  * Gets the target of the current user and calls resolve.
- * @param {CallableContext} context
  * @param {string} gameName the name of the game collection
  * @param {number} round the round number to read from
  * @param {DocumentReference} roundDoc the round document
+ * @param {string} email the email of the current user
  * @param {Object} resolve
  * @param {Object} reject
  * @param {boolean} stats whether to include statistics in the result
  * @return {void}
  */
-function getTarget(context: CallableContext, gameName: string, round: number, roundDoc: DocumentReference, resolve: (value: {
+function getTarget(gameName: string, round: number, roundDoc: DocumentReference, email: string | undefined, resolve: (value: {
   email: string,
   round: number,
   alive: boolean,
   targetEmail: string,
   targetName: string,
+  eliminating: number,
   stats?: { alive: number, eliminated: number, eliminatedThisRound: number }
 }) => void, reject: (value: unknown) => void, stats: boolean): void {
-  const email = context.auth?.token.email;
   if (!email) {
     throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
   }
@@ -106,9 +105,17 @@ function getTarget(context: CallableContext, gameName: string, round: number, ro
     const player = game[email];
     if (!player) {
       if (stats) {
-        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: "", stats: getStats(game)});
+        resolve({
+          email: email,
+          round: round,
+          alive: false,
+          targetEmail: "",
+          targetName: "",
+          eliminating: 0,
+          stats: getStats(game),
+        });
       } else {
-        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: ""});
+        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: "", eliminating: 0});
       }
       return;
     }
@@ -132,10 +139,18 @@ function getTarget(context: CallableContext, gameName: string, round: number, ro
         alive: player.alive,
         targetEmail: targetEmail,
         targetName: target.name,
+        eliminating: player.eliminating,
         stats: getStats(game),
       });
     } else {
-      resolve({email: email, round: round, alive: player.alive, targetEmail: targetEmail, targetName: target.name});
+      resolve({
+        email: email,
+        round: round,
+        alive: player.alive,
+        targetEmail: targetEmail,
+        targetName: target.name,
+        eliminating: player.eliminating,
+      });
     }
   }).catch((error) => {
     functions.logger.log(error);
@@ -164,26 +179,80 @@ exports.eliminateTarget = functions.https.onCall((_data, context) => {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
     }
 
-    eliminateTarget(context, resolve, reject);
+    eliminateTarget(context.auth?.token.email, resolve, reject);
   });
 });
 
 /**
- * Eliminates the target of the current user and calls resolve with the new target.
- * @param {CallableContext} context
+ * Marks the current user as eliminating.
+ * @param {string} email the email of the current user
+ * @param {Object} resolve
+ * @param {Object} reject
+ */
+function eliminateTarget(email: string | undefined, resolve: () => void, reject: (value: unknown) => void): void {
+  if (!email) {
+    throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+  }
+  const firestore = admin.firestore();
+  getRound(firestore).then(({gameName, gameCollection, round}) => {
+    const roundDoc = gameCollection.doc("round" + round);
+    roundDoc.get().then((roundDocSnapshot) => {
+      const game = roundDocSnapshot?.data()?.game;
+      if (!game) {
+        throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+      }
+      const player = game[email];
+      if (!player) {
+        resolve();
+        return;
+      }
+      if (!player.alive) {
+        throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
+      }
+
+      roundDoc.update(new FieldPath("game", email, "eliminating"), Date.now()).then(resolve);
+    });
+  }).catch((error) => {
+    functions.logger.log(error);
+    reject(error);
+  });
+}
+
+exports.confirmEliminateTarget = functions.https.onCall((data: { email: string }, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then(async (user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can confirm eliminations");
+      }
+
+      confirmEliminateTarget(data.email, resolve, reject);
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
+/**
+ * Eliminates the target of the current user.
+ * @param {string} email the email of the current user
  * @param {Object} resolve
  * @param {Object} reject
  * @return {void}
  */
-function eliminateTarget(context: CallableContext, resolve: () => void, reject: (value: unknown) => void): void {
+function confirmEliminateTarget(email: string, resolve: () => void, reject: (value: unknown) => void): void {
   const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    getTarget(context, gameName, round, roundDoc, (result: { alive: boolean, targetEmail: string }) => {
+    getTarget(gameName, round, roundDoc, email, (result: { alive: boolean, targetEmail: string }) => {
       if (!result.alive) {
         throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
       }
-      roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false).then(resolve);
+      roundDoc.update({game: {[email]: {eliminating: 0}, [result.targetEmail]: {alive: false}}}).then(resolve);
     }, reject, false);
   }).catch((error) => {
     functions.logger.log(error);
@@ -300,7 +369,9 @@ async function createNewRound(gameCollection: CollectionReference, round: number
   if (randomize) {
     shuffleArray(emails);
   }
-  const game: { [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean } } = {};
+  const game: {
+    [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number }
+  } = {};
   for (let i = 0; i < emails.length; i++) {
     const email = emails[i];
     const targetEmail = emails[(i + 1) % emails.length];
@@ -309,6 +380,7 @@ async function createNewRound(gameCollection: CollectionReference, round: number
       name: names[email].name,
       targetEmail: targetEmail,
       wasAlive: names[email].alive,
+      eliminating: 0,
     };
   }
   await roundDoc.set({emails: emails, game: game});
