@@ -61,6 +61,10 @@ document.getElementById("signOut").onclick = () => {
   if (!confirm("Are you sure you want to sign out?")) {
     return;
   }
+  invokeSignOut();
+}
+
+function invokeSignOut() {
   document.getElementById("signOut").style.visibility = "hidden";
   document.getElementById("signingOut").style.display = "";
   if (unsubActiveGameName) {
@@ -99,8 +103,16 @@ onAuthStateChanged(auth, user => {
     }
     return;
   }
+
+  if (!user.email.endsWith("@deerfield.edu")) {
+    alert("You signed in with a non-Deerfield email. Please sign in with your Deerfield email.");
+    invokeSignOut();
+    return;
+  }
+
   const name = user.displayName;
   document.getElementById("name").innerHTML += name;
+  document.getElementById("email").innerHTML += user.email;
   document.getElementById("signIn").style.display = "none";
   document.getElementById("signingIn").style.display = "none";
   document.getElementById("signOut").style.visibility = "";
@@ -254,9 +266,9 @@ function queryAndHandlePendingEliminations() {
     const pendingEliminationsDiv = document.getElementById("pendingEliminations");
     pendingEliminationsDiv.replaceChildren();
     for (const email in result.data) {
-      const pendingElimination = result.data[email];
+      const {name, time, targetEmail, targetName} = result.data[email];
       const pendingEliminationDiv = document.createElement("div");
-      pendingEliminationDiv.innerHTML = `${pendingElimination.name} (${email}) wants to eliminate ${pendingElimination.targetName} (${pendingElimination.targetEmail}) at ${new Date(pendingElimination.time).toLocaleString()} `;
+      pendingEliminationDiv.innerHTML = `${name} (${email}) wants to eliminate ${targetName} (${targetEmail}) at ${new Date(time).toLocaleString()} `;
 
       const confirmEliminationButton = document.createElement("button");
       const cancelEliminationButton = document.createElement("button");
@@ -269,7 +281,7 @@ function queryAndHandlePendingEliminations() {
         }
         confirmEliminationButton.style.display = "none";
         cancelEliminationButton.style.display = "none";
-        httpsCallable(functions, "confirmEliminateTarget")({email}).catch((error) => {
+        httpsCallable(functions, "confirmEliminateTarget")({email, targetEmail}).catch((error) => {
           console.log(error);
           alert("Error confirming elimination: " + error);
         });

@@ -295,7 +295,7 @@ function getPendingEliminations(resolve: (value: {
   });
 }
 
-exports.confirmEliminateTarget = functions.https.onCall((data: { email: string }, context) => {
+exports.confirmEliminateTarget = functions.https.onCall((data: { email: string, targetEmail: string }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can confirm eliminations");
@@ -306,7 +306,7 @@ exports.confirmEliminateTarget = functions.https.onCall((data: { email: string }
         throw new functions.https.HttpsError("permission-denied", "only admins can confirm eliminations");
       }
 
-      confirmEliminateTarget(data.email, resolve, reject);
+      confirmEliminateTarget(data.email, data.targetEmail, resolve, reject);
     }).catch((error) => {
       functions.logger.log(error);
       reject(error);
@@ -317,17 +317,28 @@ exports.confirmEliminateTarget = functions.https.onCall((data: { email: string }
 /**
  * Confirms the elimination the target of the current user.
  * @param {string} email the email of the current user
+ * @param {string} targetEmail the email of the target to eliminate
  * @param {Object} resolve
  * @param {Object} reject
  * @return {void}
  */
-function confirmEliminateTarget(email: string, resolve: () => void, reject: (value: unknown) => void): void {
+function confirmEliminateTarget(email: string, targetEmail: string, resolve: () => void, reject: (value: unknown) => void): void {
   const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    getTarget(gameName, round, roundDoc, email, async (result: { alive: boolean, targetEmail: string }) => {
+    getTarget(gameName, round, roundDoc, email, async (result: {
+      alive: boolean,
+      targetEmail: string,
+      eliminating: number
+    }) => {
       if (!result.alive) {
         throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
+      }
+      if (!result.eliminating) {
+        throw new functions.https.HttpsError("failed-precondition", "player is not eliminating their target, most likely the elimination has been canceled by another admin");
+      }
+      if (result.targetEmail !== targetEmail) {
+        throw new functions.https.HttpsError("failed-precondition", "target email does not match the target of the current user, most likely the elimination has been confirmed by another admin");
       }
       const eliminatingResetWrite = roundDoc.update(new FieldPath("game", email, "eliminating"), 0);
       const eliminateWrite = roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false);
