@@ -21,6 +21,7 @@ const firebaseConfig = {
 
 // Initialize Firebase
 admin.initializeApp(firebaseConfig);
+const firestore = admin.firestore();
 
 /**
  * Gets the active game collection from the game name stored in the active game collection.
@@ -63,7 +64,6 @@ exports.queryTarget = functions.https.onCall((_data, context) => {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
     }
 
-    const firestore = admin.firestore();
     getRound(firestore).then(({gameName, gameCollection, round}) => {
       const roundDoc = gameCollection.doc("round" + round);
       getTarget(gameName, round, roundDoc, context.auth?.token.email, resolve, reject, true);
@@ -210,7 +210,6 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
   if (!email) {
     throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
   }
-  const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((roundDocSnapshot) => {
@@ -227,6 +226,7 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
         throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
       }
 
+      functions.logger.log(`${email} wants to eliminate their target`);
       roundDoc.update(new FieldPath("game", email, "eliminating"), Date.now()).then(resolve);
     });
   }).catch((error) => {
@@ -262,7 +262,6 @@ exports.getPendingEliminations = functions.https.onCall((_data, context) => {
 function getPendingEliminations(resolve: (value: {
   [email: string]: { name: string, time: number, targetEmail: string, targetName: string }
 }) => void, reject: (value: unknown) => void): void {
-  const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((roundDocSnapshot) => {
@@ -323,7 +322,6 @@ exports.confirmEliminateTarget = functions.https.onCall((data: { email: string, 
  * @return {void}
  */
 function confirmEliminateTarget(email: string, targetEmail: string, resolve: () => void, reject: (value: unknown) => void): void {
-  const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     getTarget(gameName, round, roundDoc, email, async (result: {
@@ -340,6 +338,7 @@ function confirmEliminateTarget(email: string, targetEmail: string, resolve: () 
       if (result.targetEmail !== targetEmail) {
         throw new functions.https.HttpsError("failed-precondition", "target email does not match the target of the current user, most likely the elimination has been confirmed by another admin");
       }
+      functions.logger.log(`Confirmed ${email} eliminating their target ${targetEmail}`);
       const eliminatingResetWrite = roundDoc.update(new FieldPath("game", email, "eliminating"), 0);
       const eliminateWrite = roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false);
       await eliminatingResetWrite;
@@ -379,9 +378,9 @@ exports.cancelEliminateTarget = functions.https.onCall((data: { email: string },
  * @return {void}
  */
 function cancelEliminateTarget(email: string, resolve: () => void, reject: (value: unknown) => void): void {
-  const firestore = admin.firestore();
   getRound(firestore).then(({gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
+    functions.logger.log(`Canceled ${email} eliminating their target`);
     roundDoc.update(new FieldPath("game", email, "eliminating"), 0).then(resolve);
   }).catch((error) => {
     functions.logger.log(error);
@@ -391,7 +390,7 @@ function cancelEliminateTarget(email: string, resolve: () => void, reject: (valu
 
 exports.update = functions.firestore.document("{gameName}/{round}").onUpdate((_change, context) => {
   if (context.params.round !== "update") {
-    admin.firestore().doc(`${context.params.gameName}/update`).set({time: Date.now()}).catch((error) => {
+    firestore.doc(`${context.params.gameName}/update`).set({time: Date.now()}).catch((error) => {
       functions.logger.log(error);
     });
   }
@@ -423,7 +422,6 @@ exports.newRound = functions.https.onCall((data: { randomize: boolean }, context
  * @param {boolean} randomize whether to randomize the order of the players
  */
 function newRound(resolve: () => void, randomize: boolean) {
-  const firestore = admin.firestore();
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then(async (snapshot) => {
@@ -475,9 +473,9 @@ async function newGame(data: { newGameName: string, emailsAndNames: { [email: st
     names[email] = {name: data.emailsAndNames[email], alive: true, wasAlive: true};
   }
   const {newGameName, randomize} = data;
-  const newActiveGameNameWrite = admin.firestore().collection(activeGameNameCollection).doc(activeGameName).set({name: newGameName});
-  const resetRoundNumberWrite = admin.firestore().collection(newGameName).doc(info).set({round: 1});
-  const newRoundWrite = createNewRound(admin.firestore().collection(newGameName), 1, emails, names, randomize);
+  const newActiveGameNameWrite = firestore.collection(activeGameNameCollection).doc(activeGameName).set({name: newGameName});
+  const resetRoundNumberWrite = firestore.collection(newGameName).doc(info).set({round: 1});
+  const newRoundWrite = createNewRound(firestore.collection(newGameName), 1, emails, names, randomize);
   await newActiveGameNameWrite;
   await resetRoundNumberWrite;
   await newRoundWrite;
