@@ -163,6 +163,7 @@ function queryAndHandleTarget() {
     data: {
       email: string,
       round: number,
+      started: boolean,
       alive: boolean,
       targetEmail: string,
       targetName: string,
@@ -175,7 +176,7 @@ function queryAndHandleTarget() {
       return;
     }
     console.log("Query target result: ", result.data);
-    handleTarget(result.data.email, result.data.round, result.data.alive, result.data.targetEmail, result.data.targetName, result.data.eliminating, result.data.stats);
+    handleTarget(result.data.email, result.data.round, result.data.started, result.data.alive, result.data.targetEmail, result.data.targetName, result.data.eliminating, result.data.stats);
   }).catch(error => {
     console.log(error);
   });
@@ -184,7 +185,7 @@ function queryAndHandleTarget() {
 /**
  * Updates the UI based on the given parameters.
  */
-function handleTarget(email: string, round: number, alive: boolean, targetEmail: string, targetName: string, eliminating: number, stats: {
+function handleTarget(email: string, round: number, started: boolean, alive: boolean, targetEmail: string, targetName: string, eliminating: number, stats: {
   alive: number,
   eliminated: number,
   eliminatedThisRound: number
@@ -210,14 +211,21 @@ function handleTarget(email: string, round: number, alive: boolean, targetEmail:
   } else {
     document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
     if (alive) {
-      document.getElementById("target").innerHTML = "Your target is " + targetName;
-      document.getElementById("appeal").style.display = "none";
-      if (eliminating) {
-        document.getElementById("eliminate").style.display = "none";
-        document.getElementById("eliminating").style.display = "";
+      if (started) {
+        document.getElementById("target").innerHTML = "Your target is " + targetName;
+        document.getElementById("appeal").style.display = "none";
+        if (eliminating) {
+          document.getElementById("eliminate").style.display = "none";
+          document.getElementById("eliminating").style.display = "";
+        } else {
+          document.getElementById("eliminate").style.display = "";
+          document.getElementById("eliminating").style.display = "none";
+        }
       } else {
-        document.getElementById("eliminate").style.display = "";
+        document.getElementById("target").innerHTML = "Waiting for the game to start...";
+        document.getElementById("eliminate").style.display = "none";
         document.getElementById("eliminating").style.display = "none";
+        document.getElementById("appeal").style.display = "none";
       }
     } else {
       document.getElementById("target").innerHTML = "Thanks for playing!";

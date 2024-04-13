@@ -88,6 +88,7 @@ exports.queryTarget = functions.https.onCall((_data, context) => {
 function getTarget(gameName: string, round: number, roundDoc: DocumentReference, email: string | undefined, resolve: (value: {
   email: string,
   round: number,
+  started: boolean,
   alive: boolean,
   targetEmail: string,
   targetName: string,
@@ -98,6 +99,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
     throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
   }
   roundDoc.get().then((roundDoc) => {
+    const started = roundDoc?.data()?.started;
     const game = roundDoc?.data()?.game;
     if (!game) {
       throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
@@ -108,6 +110,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
         resolve({
           email: email,
           round: round,
+          started: started,
           alive: false,
           targetEmail: "",
           targetName: "",
@@ -115,7 +118,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
           stats: getStats(game),
         });
       } else {
-        resolve({email: email, round: round, alive: false, targetEmail: "", targetName: "", eliminating: 0});
+        resolve({email: email, round: round, started: started, alive: false, targetEmail: "", targetName: "", eliminating: 0});
       }
       return;
     }
@@ -126,9 +129,10 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
       resolve({
         email: email,
         round: round,
+        started: started,
         alive: player.alive,
-        targetEmail: targetEmail,
-        targetName: target.name,
+        targetEmail: started ? targetEmail : "",
+        targetName: started ? target.name : "",
         eliminating: player.eliminating,
         stats: getStats(game),
       });
@@ -136,9 +140,10 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
       resolve({
         email: email,
         round: round,
+        started: started,
         alive: player.alive,
-        targetEmail: targetEmail,
-        targetName: target.name,
+        targetEmail: started ? targetEmail : "",
+        targetName: started ? target.name : "",
         eliminating: player.eliminating,
       });
     }
