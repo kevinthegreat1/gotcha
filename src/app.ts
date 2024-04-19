@@ -332,8 +332,28 @@ document.getElementById("newRoundButton").onclick = () => {
   }
   document.getElementById("newRoundButton").style.display = "none";
   document.getElementById("creatingNewRound").style.display = "";
-  const newRound = httpsCallable(functions, "newRound");
-  newRound({randomize}).catch((error) => {
+  httpsCallable(functions, "newRound")({randomize}).then((result: {
+    data: {
+      emails: string[],
+      game: {
+        [email: string]: { alive: boolean; name: string; targetEmail: string; wasAlive: boolean; eliminating: number }
+      }
+    }
+  }) => {
+    const {emails, game} = result.data;
+    console.log("Created new round:")
+    let round = "Email\tName\tTarget Email\tAlive\n";
+    let email = emails[0];
+    while (true) {
+      const {alive, name, targetEmail} = game[email];
+      round += `${email}\t${name}\t${targetEmail}\t${alive}\n`;
+      email = targetEmail;
+      if (email === emails[0]) {
+        break;
+      }
+    }
+    console.log(round);
+  }).catch((error) => {
     alert("Error creating new round: " + error)
     console.log(error);
   }).finally(() => {
