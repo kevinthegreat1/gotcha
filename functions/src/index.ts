@@ -58,7 +58,7 @@ async function getRound(firestore: Firestore): Promise<{
   return {gameName, gameCollection, round};
 }
 
-exports.queryTarget = functions.https.onCall((_data, context) => {
+exports.queryTarget = functions.runWith({memory: "128MB", maxInstances: 3}).https.onCall((_data, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
@@ -203,7 +203,7 @@ function getStats(game: {
   return {alive, eliminated, eliminatedThisRound};
 }
 
-exports.eliminateTarget = functions.https.onCall((_data, context) => {
+exports.eliminateTarget = functions.runWith({memory: "128MB", maxInstances: 2}).https.onCall((_data, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -248,7 +248,7 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
   });
 }
 
-exports.getPendingEliminations = functions.https.onCall((_data, context) => {
+exports.getPendingEliminations = functions.runWith({memory: "128MB", maxInstances: 3}).https.onCall((_data, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can get pending eliminations");
@@ -307,7 +307,7 @@ function getPendingEliminations(resolve: (value: {
   });
 }
 
-exports.confirmEliminateTarget = functions.https.onCall((data: { email: string, targetEmail: string }, context) => {
+exports.confirmEliminateTarget = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { email: string, targetEmail: string }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can confirm eliminations");
@@ -364,7 +364,7 @@ function confirmEliminateTarget(email: string, targetEmail: string, resolve: () 
   });
 }
 
-exports.cancelEliminateTarget = functions.https.onCall((data: { email: string }, context) => {
+exports.cancelEliminateTarget = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { email: string }, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can cancel eliminations");
@@ -401,7 +401,7 @@ function cancelEliminateTarget(email: string, resolve: () => void, reject: (valu
   });
 }
 
-exports.update = functions.firestore.document("{gameName}/{round}").onUpdate((_change, context) => {
+exports.update = functions.runWith({memory: "128MB", maxInstances: 3}).firestore.document("{gameName}/{round}").onUpdate((_change, context) => {
   if (context.params.round !== "update") {
     firestore.doc(`${context.params.gameName}/update`).set({time: Date.now()}).catch((error) => {
       functions.logger.log(error);
@@ -410,7 +410,7 @@ exports.update = functions.firestore.document("{gameName}/{round}").onUpdate((_c
   return null;
 });
 
-exports.newRound = functions.https.onCall((data: { randomize: boolean }, context) => {
+exports.newRound = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { randomize: boolean }, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
@@ -456,7 +456,7 @@ function newRound(resolve: (value: {
   });
 }
 
-exports.newGame = functions.https.onCall((data: {
+exports.newGame = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: {
   newGameName: string,
   emailsAndNames: { [email: string]: string },
   randomize: boolean
@@ -542,7 +542,7 @@ function shuffleArray(array: unknown[]) {
   }
 }
 
-exports.makeAdmin = functions.https.onCall((data: string, context) => {
+exports.makeAdmin = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: string, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can make admins");
@@ -566,7 +566,7 @@ exports.makeAdmin = functions.https.onCall((data: string, context) => {
   });
 });
 
-exports.removeAdmin = functions.https.onCall((data: string, context) => {
+exports.removeAdmin = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: string, context) => {
   return new Promise<void>((resolve, reject) => {
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "only authenticated users can remove admins");
