@@ -239,7 +239,7 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
         throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
       }
 
-      functions.logger.log(`${email} wants to eliminate their target`);
+      functions.logger.log(`Player ${email} wants to eliminate their target`);
       roundDoc.update(new FieldPath("game", email, "eliminating"), Date.now()).then(resolve);
     });
   }).catch((error) => {
@@ -343,15 +343,15 @@ function confirmEliminateTarget(email: string, targetEmail: string, resolve: () 
       eliminating: number
     }) => {
       if (!result.alive) {
-        throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
+        throw new functions.https.HttpsError("failed-precondition", `confirmation failed: player ${email} is eliminated and cannot eliminate their target ${targetEmail}`);
       }
       if (!result.eliminating) {
-        throw new functions.https.HttpsError("failed-precondition", "player is not eliminating their target, most likely the elimination has been canceled by another admin");
+        throw new functions.https.HttpsError("failed-precondition", `confirmation failed: player ${email} is not eliminating their target ${targetEmail}, most likely the elimination has been canceled by another admin`);
       }
       if (result.targetEmail !== targetEmail) {
-        throw new functions.https.HttpsError("failed-precondition", "target email does not match the target of the current user, most likely the elimination has been confirmed by another admin");
+        throw new functions.https.HttpsError("failed-precondition", `confirmation failed: player ${email}'s current target ${targetEmail} does not match the requested elimination target ${result.targetEmail}, most likely the elimination has been confirmed by another admin`);
       }
-      functions.logger.log(`Confirmed ${email} eliminating their target ${targetEmail}`);
+      functions.logger.log(`Confirmed player ${email} eliminating their target ${targetEmail}`);
       const eliminatingResetWrite = roundDoc.update(new FieldPath("game", email, "eliminating"), 0);
       const eliminateWrite = roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false);
       await eliminatingResetWrite;
@@ -393,7 +393,7 @@ exports.cancelEliminateTarget = functions.runWith({memory: "128MB", maxInstances
 function cancelEliminateTarget(email: string, resolve: () => void, reject: (value: unknown) => void): void {
   getRound(firestore).then(({gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    functions.logger.log(`Canceled ${email} eliminating their target`);
+    functions.logger.log(`Canceled player ${email} eliminating their target`);
     roundDoc.update(new FieldPath("game", email, "eliminating"), 0).then(resolve);
   }).catch((error) => {
     functions.logger.log(error);
