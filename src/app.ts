@@ -122,7 +122,7 @@ onAuthStateChanged(auth, user => {
     if (idTokenResult.claims.admin) {
       // @ts-ignore
       for (const adminElement of document.getElementsByClassName("admin")) {
-        if (!adminElement.id.startsWith("creating") && !adminElement.id.startsWith("making") && !adminElement.id.startsWith("removing")) {
+        if (!adminElement.id.startsWith("starting") && !adminElement.id.startsWith("creating") && !adminElement.id.startsWith("making") && !adminElement.id.startsWith("removing")) {
           adminElement.style.display = "";
         }
       }
@@ -319,10 +319,29 @@ function queryAndHandlePendingEliminations() {
 }
 
 /**
- * Sends a request to create a new round.
+ * Sends a request to start the current round.
+ */
+document.getElementById("startRoundButton").onclick = () => {
+  if (!confirm("Are you sure you want to start the current round?")) {
+    return;
+  }
+
+  document.getElementById("startRoundButton").style.display = "none";
+  document.getElementById("startingRound").style.display = "";
+  httpsCallable(functions, "startRound")().catch((error) => {
+    console.log(error);
+    alert("Error starting current round: " + error);
+  }).finally(() => {
+    document.getElementById("startRoundButton").style.display = "";
+    document.getElementById("startingRound").style.display = "none";
+  });
+}
+
+/**
+ * Sends a request to create a new round. This does not start the new round.
  */
 document.getElementById("newRoundButton").onclick = () => {
-  if (!confirm("Are you sure you want to finish this round and start the next round?")) {
+  if (!confirm("Are you sure you want to finish this round and set up the next round?")) {
     return;
   }
   // @ts-ignore
@@ -354,8 +373,8 @@ document.getElementById("newRoundButton").onclick = () => {
     }
     console.log(round);
   }).catch((error) => {
-    alert("Error creating new round: " + error)
     console.log(error);
+    alert("Error creating new round: " + error)
   }).finally(() => {
     document.getElementById("newRoundButton").style.display = "";
     document.getElementById("creatingNewRound").style.display = "none";
@@ -363,12 +382,12 @@ document.getElementById("newRoundButton").onclick = () => {
 }
 
 /**
- * Sends a request to create a new game.
+ * Sends a request to create a new game. This does not start the new game.
  */
 document.getElementById("newGameForm").onsubmit = () => {
   document.getElementById("newGameForm").style.display = "none";
   document.getElementById("creatingNewGame").style.display = "";
-  if (!confirm("Are you sure you want to finish this game and start a new game?")) {
+  if (!confirm("Are you sure you want to finish this game and set up a new game?")) {
     return onNewGameFailure();
   }
 

@@ -133,3 +133,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/** @license
+
+ Copyright The Closure Library Authors.
+ SPDX-License-Identifier: Apache-2.0
+*/

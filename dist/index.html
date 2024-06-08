@@ -39,14 +39,19 @@
             <div id="pendingEliminations" class="admin flex flex-col space-y-2"></div>
 
             <hr class="divider admin w-full border-green-700" style="display:none">
-            <h2 id="newRound" class="admin text-2xl" style="display:none">Start a new round</h2>
+            <h2 id="startRound" class="admin text-2xl" style="display:none">Start Current Round</h2>
+            <button id="startRoundButton" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">Start Round</button>
+            <h2 id="startingRound" class="admin text-2xl" style="display:none">Starting Current Round...</h2>
+
+            <hr class="divider admin w-full border-green-700" style="display:none">
+            <h2 id="newRound" class="admin text-2xl" style="display:none">Set up a new round</h2>
             <div class="admin" style="display:none">
                 <input type="checkbox" id="newRoundRandomize" class="admin bg-green-50"> Randomize players<br>
             </div>
             <button id="newRoundButton" class="admin px-3 py-1 rounded-2xl bg-green-600 hover:bg-green-700 focus:bg-green-700 active:bg-green-800 text-green-100" style="display:none">New Round</button>
             <h2 id="creatingNewRound" class="admin text-2xl" style="display:none">Creating New Round...</h2>
             <hr class="divider admin w-full border-green-700" style="display:none">
-            <h2 id="newGame" class="admin text-2xl" style="display:none">Start a new game</h2>
+            <h2 id="newGame" class="admin text-2xl" style="display:none">Set up a new game</h2>
             <form id="newGameForm" class="admin space-y-2" style="display:none">
                 <label for="newGameName" class="admin">Enter a name for the new game</label><br>
                 <input type="text" id="newGameName" class="admin bg-green-50"><br><br>

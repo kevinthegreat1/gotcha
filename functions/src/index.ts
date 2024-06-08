@@ -412,6 +412,30 @@ exports.update = functions.runWith({memory: "128MB", maxInstances: 3}).firestore
   return null;
 });
 
+exports.startRound = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((_data, context) => {
+  return new Promise<void>((resolve, reject) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can start a round");
+    }
+
+    admin.auth().getUser(context.auth?.uid).then((user) => {
+      if (!user.customClaims?.admin) {
+        throw new functions.https.HttpsError("permission-denied", "only admins can start a round");
+      }
+
+      getRound(firestore).then(async ({gameName, gameCollection, round}) => {
+        const roundDoc = gameCollection.doc("round" + round);
+        await roundDoc.update({started: true});
+        functions.logger.log(`Admin ${context.auth?.token.email} started game '${gameName}' round ${round}`);
+        resolve();
+      });
+    }).catch((error) => {
+      functions.logger.log(error);
+      reject(error);
+    });
+  });
+});
+
 exports.newRound = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { randomize: boolean }, context) => {
   return new Promise((resolve, reject) => {
     if (!context.auth) {
