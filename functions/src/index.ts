@@ -1,5 +1,8 @@
 /* eslint-disable max-len */
-import * as functions from "firebase-functions";
+import {HttpsError, onCall} from "firebase-functions/v2/https";
+import {onDocumentUpdated} from "firebase-functions/v2/firestore";
+import {setGlobalOptions} from "firebase-functions/v2";
+import {log} from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {CollectionReference, DocumentReference, FieldPath, Firestore} from "firebase-admin/firestore";
 
@@ -23,6 +26,8 @@ const firebaseConfig = {
 admin.initializeApp(firebaseConfig);
 const firestore = admin.firestore();
 
+setGlobalOptions({memory: "128MiB", maxInstances: 1});
+
 /**
  * Gets the active game collection from the game name stored in the active game collection.
  * @param {Firestore} firestore the firestore instance to read from
@@ -34,7 +39,7 @@ async function getGameCollection(firestore: Firestore): Promise<{
   const gameDoc = await firestore.collection(activeGameNameCollection).doc(activeGameName).get();
   const gameName = gameDoc.data()?.name;
   if (!gameName) {
-    throw new functions.https.HttpsError("not-found", "active game name not found");
+    throw new HttpsError("not-found", "active game name not found");
   }
   const gameCollection = firestore.collection(gameName);
   return {gameName, gameCollection};
@@ -53,22 +58,22 @@ async function getRound(firestore: Firestore): Promise<{
   const {gameName, gameCollection} = await getGameCollection(firestore);
   const round = (await gameCollection.doc(info).get())?.data()?.round;
   if (!round) {
-    throw new functions.https.HttpsError("not-found", `game '${gameName}' info document not found`);
+    throw new HttpsError("not-found", `game '${gameName}' info document not found`);
   }
   return {gameName, gameCollection, round};
 }
 
-exports.queryTarget = functions.runWith({memory: "128MB", maxInstances: 3}).https.onCall((_data, context) => {
+exports.queryTarget = onCall(({auth}) => {
   return new Promise((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can query their target");
     }
 
     getRound(firestore).then(({gameName, gameCollection, round}) => {
       const roundDoc = gameCollection.doc("round" + round);
-      getTarget(gameName, round, roundDoc, context.auth?.token.email, resolve, reject, true);
+      getTarget(gameName, round, roundDoc, auth?.token.email, resolve, reject, true);
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
@@ -96,13 +101,13 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
   stats?: { alive: number, eliminated: number, eliminatedThisRound: number }
 }) => void, reject: (value: unknown) => void, stats: boolean): void {
   if (!email) {
-    throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+    throw new HttpsError("unauthenticated", "only authenticated users can query their target");
   }
   roundDoc.get().then((roundDoc) => {
     const started = roundDoc?.data()?.started;
     const game = roundDoc?.data()?.game;
     if (!game) {
-      throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+      throw new HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
     }
     const player = game[email];
     if (!player) {
@@ -156,7 +161,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
       });
     }
   }).catch((error) => {
-    functions.logger.log(error);
+    log(error);
     reject(error);
   });
 }
@@ -203,13 +208,13 @@ function getStats(game: {
   return {alive, eliminated, eliminatedThisRound};
 }
 
-exports.eliminateTarget = functions.runWith({memory: "128MB", maxInstances: 2}).https.onCall((_data, context) => {
+exports.eliminateTarget = onCall(({auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can eliminate their target");
     }
 
-    eliminateTarget(context.auth?.token.email, resolve, reject);
+    eliminateTarget(auth?.token.email, resolve, reject);
   });
 });
 
@@ -221,14 +226,14 @@ exports.eliminateTarget = functions.runWith({memory: "128MB", maxInstances: 2}).
  */
 function eliminateTarget(email: string | undefined, resolve: () => void, reject: (value: unknown) => void): void {
   if (!email) {
-    throw new functions.https.HttpsError("unauthenticated", "only authenticated users can query their target");
+    throw new HttpsError("unauthenticated", "only authenticated users can query their target");
   }
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((roundDocSnapshot) => {
       const game = roundDocSnapshot?.data()?.game;
       if (!game) {
-        throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+        throw new HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
       const player = game[email];
       if (!player) {
@@ -236,32 +241,32 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
         return;
       }
       if (!player.alive) {
-        throw new functions.https.HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
+        throw new HttpsError("failed-precondition", "eliminated players cannot eliminate their target");
       }
 
-      functions.logger.log(`Player ${email} wants to eliminate their target`);
+      log(`Player ${email} wants to eliminate their target`);
       roundDoc.update(new FieldPath("game", email, "eliminating"), Date.now()).then(resolve);
     });
   }).catch((error) => {
-    functions.logger.log(error);
+    log(error);
     reject(error);
   });
 }
 
-exports.getPendingEliminations = functions.runWith({memory: "128MB", maxInstances: 3}).https.onCall((_data, context) => {
+exports.getPendingEliminations = onCall(({auth}) => {
   return new Promise((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can get pending eliminations");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can get pending eliminations");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(auth?.uid).then((user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can get pending eliminations");
+        throw new HttpsError("permission-denied", "only admins can get pending eliminations");
       }
 
       getPendingEliminations(resolve, reject);
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
@@ -280,7 +285,7 @@ function getPendingEliminations(resolve: (value: {
     roundDoc.get().then((roundDocSnapshot) => {
       const game = roundDocSnapshot?.data()?.game;
       if (!game) {
-        throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+        throw new HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
       const emails = Object.keys(game);
       emails.sort((a, b) => game[a].eliminating - game[b].eliminating);
@@ -302,25 +307,25 @@ function getPendingEliminations(resolve: (value: {
       resolve(pendingEliminations);
     });
   }).catch((error) => {
-    functions.logger.log(error);
+    log(error);
     reject(error);
   });
 }
 
-exports.confirmEliminateTarget = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { email: string, targetEmail: string }, context) => {
+exports.confirmEliminateTarget = onCall<{ email: string, targetEmail: string }>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can confirm eliminations");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can confirm eliminations");
     }
 
-    admin.auth().getUser(context.auth?.uid).then(async (user) => {
+    admin.auth().getUser(auth?.uid).then(async (user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can confirm eliminations");
+        throw new HttpsError("permission-denied", "only admins can confirm eliminations");
       }
 
-      confirmEliminateTarget(context.auth?.token.email ?? "", data.email, data.targetEmail, resolve, reject);
+      confirmEliminateTarget(auth?.token.email ?? "", data.email, data.targetEmail, resolve, reject);
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
@@ -344,15 +349,15 @@ function confirmEliminateTarget(adminEmail: string, email: string, targetEmail: 
       eliminating: number
     }) => {
       if (!result.alive) {
-        throw new functions.https.HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email} is eliminated and cannot eliminate their target ${targetEmail}`);
+        throw new HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email} is eliminated and cannot eliminate their target ${targetEmail}`);
       }
       if (!result.eliminating) {
-        throw new functions.https.HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email} is not eliminating their target ${targetEmail}, most likely the elimination has been canceled by another admin`);
+        throw new HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email} is not eliminating their target ${targetEmail}, most likely the elimination has been canceled by another admin`);
       }
       if (result.targetEmail !== targetEmail) {
-        throw new functions.https.HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email}'s current target ${targetEmail} does not match the requested elimination target ${result.targetEmail}, most likely the elimination has been confirmed by another admin`);
+        throw new HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email}'s current target ${targetEmail} does not match the requested elimination target ${result.targetEmail}, most likely the elimination has been confirmed by another admin`);
       }
-      functions.logger.log(`Admin ${adminEmail} confirmed player ${email} eliminating their target ${targetEmail}`);
+      log(`Admin ${adminEmail} confirmed player ${email} eliminating their target ${targetEmail}`);
       const eliminatingResetWrite = roundDoc.update(new FieldPath("game", email, "eliminating"), 0);
       const eliminateWrite = roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false);
       await eliminatingResetWrite;
@@ -360,25 +365,25 @@ function confirmEliminateTarget(adminEmail: string, email: string, targetEmail: 
       resolve();
     }, reject, false);
   }).catch((error) => {
-    functions.logger.log(error);
+    log(error);
     reject(error);
   });
 }
 
-exports.cancelEliminateTarget = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { email: string }, context) => {
+exports.cancelEliminateTarget = onCall<{ email: string }>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can cancel eliminations");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can cancel eliminations");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(auth?.uid).then((user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can cancel eliminations");
+        throw new HttpsError("permission-denied", "only admins can cancel eliminations");
       }
 
-      cancelEliminateTarget(context.auth?.token.email ?? "", data.email, resolve, reject);
+      cancelEliminateTarget(auth?.token.email ?? "", data.email, resolve, reject);
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
@@ -395,61 +400,61 @@ exports.cancelEliminateTarget = functions.runWith({memory: "128MB", maxInstances
 function cancelEliminateTarget(adminEmail: string, email: string, resolve: () => void, reject: (value: unknown) => void): void {
   getRound(firestore).then(({gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    functions.logger.log(`Admin ${adminEmail} canceled player ${email} eliminating their target`);
+    log(`Admin ${adminEmail} canceled player ${email} eliminating their target`);
     roundDoc.update(new FieldPath("game", email, "eliminating"), 0).then(resolve);
   }).catch((error) => {
-    functions.logger.log(error);
+    log(error);
     reject(error);
   });
 }
 
-exports.update = functions.runWith({memory: "128MB", maxInstances: 3}).firestore.document("{gameName}/{round}").onUpdate((_change, context) => {
-  if (context.params.round !== "update") {
-    firestore.doc(`${context.params.gameName}/update`).set({time: Date.now()}).catch((error) => {
-      functions.logger.log(error);
+exports.update = onDocumentUpdated("{gameName}/{round}", ({params}) => {
+  if (params.round !== "update") {
+    firestore.doc(`${params.gameName}/update`).set({time: Date.now()}).catch((error) => {
+      log(error);
     });
   }
   return null;
 });
 
-exports.startRound = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((_data, context) => {
+exports.startRound = onCall(({auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can start a round");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can start a round");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(auth?.uid).then((user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can start a round");
+        throw new HttpsError("permission-denied", "only admins can start a round");
       }
 
       getRound(firestore).then(async ({gameName, gameCollection, round}) => {
         const roundDoc = gameCollection.doc("round" + round);
         await roundDoc.update({started: true});
-        functions.logger.log(`Admin ${context.auth?.token.email} started game '${gameName}' round ${round}`);
+        log(`Admin ${auth?.token.email} started game '${gameName}' round ${round}`);
         resolve();
       });
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
 });
 
-exports.newRound = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: { randomize: boolean }, context) => {
+exports.newRound = onCall<{ randomize: boolean }>(({data, auth}) => {
   return new Promise((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can eliminate their target");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can eliminate their target");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(auth?.uid).then((user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can start a new round");
+        throw new HttpsError("permission-denied", "only admins can start a new round");
       }
 
       newRound(resolve, data.randomize);
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
@@ -471,7 +476,7 @@ function newRound(resolve: (value: {
     roundDoc.get().then(async (snapshot) => {
       const data = snapshot.data();
       if (!data) {
-        throw new functions.https.HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
+        throw new HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
       const newRoundNumberWrite = gameCollection.doc(info).update({round: round + 1});
       const newRoundWrite = createNewRound(gameCollection, round + 1, [...data.emails], data.game, randomize);
@@ -482,25 +487,25 @@ function newRound(resolve: (value: {
   });
 }
 
-exports.newGame = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: {
+exports.newGame = onCall<{
   newGameName: string,
   emailsAndNames: { [email: string]: string },
   randomize: boolean
-}, context) => {
+}>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can start a new game");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can start a new game");
     }
 
-    admin.auth().getUser(context.auth?.uid).then(async (user) => {
+    admin.auth().getUser(auth?.uid).then(async (user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can start a new game");
+        throw new HttpsError("permission-denied", "only admins can start a new game");
       }
 
       await newGame(data);
       resolve();
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
@@ -568,53 +573,53 @@ function shuffleArray(array: unknown[]) {
   }
 }
 
-exports.makeAdmin = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: string, context) => {
+exports.makeAdmin = onCall<string>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can make admins");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can make admins");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(auth?.uid).then((user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can make admins");
+        throw new HttpsError("permission-denied", "only admins can make admins");
       }
 
       admin.auth().setCustomUserClaims(data, {admin: true}).then(() => {
         resolve();
       }).catch((error) => {
-        functions.logger.log(error);
+        log(error);
         reject(error);
       });
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
 });
 
-exports.removeAdmin = functions.runWith({memory: "128MB", maxInstances: 1}).https.onCall((data: string, context) => {
+exports.removeAdmin = onCall<string>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "only authenticated users can remove admins");
+    if (!auth) {
+      throw new HttpsError("unauthenticated", "only authenticated users can remove admins");
     }
 
-    admin.auth().getUser(context.auth?.uid).then((user) => {
+    admin.auth().getUser(auth?.uid).then((user) => {
       if (!user.customClaims?.admin) {
-        throw new functions.https.HttpsError("permission-denied", "only admins can remove admins");
+        throw new HttpsError("permission-denied", "only admins can remove admins");
       }
 
-      if (data === context.auth?.uid) {
-        throw new functions.https.HttpsError("invalid-argument", "cannot remove yourself as an admin");
+      if (data === auth?.uid) {
+        throw new HttpsError("invalid-argument", "cannot remove yourself as an admin");
       }
 
       admin.auth().setCustomUserClaims(data, {admin: false}).then(() => {
         resolve();
       }).catch((error) => {
-        functions.logger.log(error);
+        log(error);
         reject(error);
       });
     }).catch((error) => {
-      functions.logger.log(error);
+      log(error);
       reject(error);
     });
   });
