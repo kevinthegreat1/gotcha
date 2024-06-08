@@ -6,6 +6,7 @@ import {getAnalytics} from "firebase/analytics";
 import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithRedirect, signOut} from "firebase/auth";
 import {connectFirestoreEmulator, doc, getFirestore, onSnapshot, Unsubscribe} from "firebase/firestore";
+import {NewRoundResult, PendingEliminations, QueryTargetResult} from "./types";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
 const activeGameName = "name"; // The name of the document that stores the name of the active game
@@ -159,24 +160,13 @@ onAuthStateChanged(auth, user => {
  * Sends a request to query the target of the current user and updates the UI.
  */
 function queryAndHandleTarget() {
-  httpsCallable(functions, "queryTarget")().then((result: {
-    data: {
-      email: string,
-      round: number,
-      started: boolean,
-      alive: boolean,
-      targetEmail: string,
-      targetName: string,
-      eliminating: number,
-      stats: { alive: number, eliminated: number, eliminatedThisRound: number }
-    }
-  }) => {
+  httpsCallable(functions, "queryTarget")().then((result: { data: QueryTargetResult }) => {
     if (result === null || result.data === null) {
       console.log("Query target result is null");
       return;
     }
     console.log("Query target result: ", result.data);
-    handleTarget(result.data.email, result.data.round, result.data.started, result.data.alive, result.data.targetEmail, result.data.targetName, result.data.eliminating, result.data.stats);
+    handleTarget(result.data);
   }).catch(error => {
     console.log(error);
   });
@@ -185,11 +175,7 @@ function queryAndHandleTarget() {
 /**
  * Updates the UI based on the given parameters.
  */
-function handleTarget(email: string, round: number, started: boolean, alive: boolean, targetEmail: string, targetName: string, eliminating: number, stats: {
-  alive: number,
-  eliminated: number,
-  eliminatedThisRound: number
-}) {
+function handleTarget({email, round, started, alive, targetEmail, targetName, eliminating, stats}: QueryTargetResult) {
   document.getElementById("signInTitle").style.display = "none";
   document.getElementById("loading").style.display = "none";
   //@ts-ignore
@@ -268,9 +254,7 @@ function eliminateTarget() {
  * Sends a request to query pending eliminations and updates the UI.
  */
 function queryAndHandlePendingEliminations() {
-  httpsCallable(functions, "getPendingEliminations")().then((result: {
-    data: { [email: string]: { name: string, time: number, targetEmail: string, targetName: string } }
-  }) => {
+  httpsCallable(functions, "getPendingEliminations")().then((result: {data: PendingEliminations}) => {
     const pendingEliminationsDiv = document.getElementById("pendingEliminations");
     pendingEliminationsDiv.replaceChildren();
     for (const email in result.data) {
@@ -351,14 +335,7 @@ document.getElementById("newRoundButton").onclick = () => {
   }
   document.getElementById("newRoundButton").style.display = "none";
   document.getElementById("creatingNewRound").style.display = "";
-  httpsCallable(functions, "newRound")({randomize}).then((result: {
-    data: {
-      emails: string[],
-      game: {
-        [email: string]: { alive: boolean; name: string; targetEmail: string; wasAlive: boolean; eliminating: number }
-      }
-    }
-  }) => {
+  httpsCallable(functions, "newRound")({randomize}).then((result: { data: NewRoundResult }) => {
     const {emails, game} = result.data;
     console.log("Created new round:")
     let round = "Email\tName\tTarget Email\tAlive\n";

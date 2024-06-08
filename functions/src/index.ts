@@ -5,6 +5,7 @@ import {setGlobalOptions} from "firebase-functions/v2";
 import {log} from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {CollectionReference, DocumentReference, FieldPath, Firestore} from "firebase-admin/firestore";
+import {Game, NewGame, NewRoundResult, PendingEliminations, PlayerWithoutTarget, PlayerWithTarget, QueryTargetResult, Stats, Target} from "../../src/types";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
 const activeGameName = "name"; // The name of the document that stores the name of the active game
@@ -85,21 +86,12 @@ exports.queryTarget = onCall(({auth}) => {
  * @param {number} round the round number to read from
  * @param {DocumentReference} roundDoc the round document
  * @param {string} email the email of the current user
- * @param {Object} resolve
- * @param {Object} reject
+ * @param {function(QueryTargetResult): void} resolve
+ * @param {function(unknown): void} reject
  * @param {boolean} stats whether to include statistics in the result
  * @return {void}
  */
-function getTarget(gameName: string, round: number, roundDoc: DocumentReference, email: string | undefined, resolve: (value: {
-  email: string,
-  round: number,
-  started: boolean,
-  alive: boolean,
-  targetEmail: string,
-  targetName: string,
-  eliminating: number,
-  stats?: { alive: number, eliminated: number, eliminatedThisRound: number }
-}) => void, reject: (value: unknown) => void, stats: boolean): void {
+function getTarget(gameName: string, round: number, roundDoc: DocumentReference, email: string | undefined, resolve: (value: QueryTargetResult) => void, reject: (value: unknown) => void, stats: boolean): void {
   if (!email) {
     throw new HttpsError("unauthenticated", "only authenticated users can query their target");
   }
@@ -168,16 +160,11 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
 
 /**
  * Gets the target of the provided email in the provided game.
- * @param {Object.<string, {alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number}>} game the game object
+ * @param {Game} game the game object
  * @param {string} email the email of the player
- * @return {{target: {alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number}, targetEmail: string}} the target and the target's email
+ * @return {{target: PlayerWithTarget, targetEmail: string}} the target and the target's email
  */
-function getTargetInternal(game: {
-  [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number }
-}, email: string): {
-  target: { alive: boolean; name: string; targetEmail: string; wasAlive: boolean; eliminating: number; };
-  targetEmail: string;
-} {
+function getTargetInternal(game: Game, email: string): { target: PlayerWithTarget; targetEmail: string; } {
   const player = game[email];
   let targetEmail = player.targetEmail;
   let target = game[targetEmail];
@@ -195,12 +182,10 @@ function getTargetInternal(game: {
 
 /**
  * Gets the statistics of the game.
- * @param {Object.<string, {alive: boolean, name: string, targetEmail: string, wasAlive: boolean}>} game the game object
- * @return {{alive: number, eliminated: number, eliminatedThisRound: number}} the statistics
+ * @param {Game} game the game object
+ * @return {Stats} the statistics
  */
-function getStats(game: {
-  [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean }
-}): { alive: number, eliminated: number, eliminatedThisRound: number } {
+function getStats(game: Game): Stats {
   const emails = Object.keys(game);
   const alive = emails.filter((email) => game[email].alive).length;
   const eliminated = emails.filter((email) => !game[email].alive).length;
@@ -221,8 +206,8 @@ exports.eliminateTarget = onCall(({auth}) => {
 /**
  * Marks the current user as eliminating.
  * @param {string} email the email of the current user
- * @param {Object} resolve
- * @param {Object} reject
+ * @param {function(void): void} resolve
+ * @param {function(unknown): void} reject
  */
 function eliminateTarget(email: string | undefined, resolve: () => void, reject: (value: unknown) => void): void {
   if (!email) {
@@ -274,12 +259,10 @@ exports.getPendingEliminations = onCall(({auth}) => {
 
 /**
  * Gets the pending eliminations.
- * @param {Object} resolve
- * @param {Object} reject
+ * @param {function(PendingEliminations): void} resolve
+ * @param {function(unknown): void} reject
  */
-function getPendingEliminations(resolve: (value: {
-  [email: string]: { name: string, time: number, targetEmail: string, targetName: string }
-}) => void, reject: (value: unknown) => void): void {
+function getPendingEliminations(resolve: (value: PendingEliminations) => void, reject: (value: unknown) => void): void {
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((roundDocSnapshot) => {
@@ -289,9 +272,7 @@ function getPendingEliminations(resolve: (value: {
       }
       const emails = Object.keys(game);
       emails.sort((a, b) => game[a].eliminating - game[b].eliminating);
-      const pendingEliminations: {
-        [email: string]: { name: string, time: number, targetEmail: string, targetName: string }
-      } = {};
+      const pendingEliminations: PendingEliminations = {};
       for (const email of emails) {
         const player = game[email];
         if (player.alive && player.eliminating) {
@@ -312,7 +293,7 @@ function getPendingEliminations(resolve: (value: {
   });
 }
 
-exports.confirmEliminateTarget = onCall<{ email: string, targetEmail: string }>(({data, auth}) => {
+exports.confirmEliminateTarget = onCall<Target>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
     if (!auth) {
       throw new HttpsError("unauthenticated", "only authenticated users can confirm eliminations");
@@ -343,11 +324,7 @@ exports.confirmEliminateTarget = onCall<{ email: string, targetEmail: string }>(
 function confirmEliminateTarget(adminEmail: string, email: string, targetEmail: string, resolve: () => void, reject: (value: unknown) => void): void {
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    getTarget(gameName, round, roundDoc, email, async (result: {
-      alive: boolean,
-      targetEmail: string,
-      eliminating: number
-    }) => {
+    getTarget(gameName, round, roundDoc, email, async (result: QueryTargetResult) => {
       if (!result.alive) {
         throw new HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email} is eliminated and cannot eliminate their target ${targetEmail}`);
       }
@@ -393,8 +370,8 @@ exports.cancelEliminateTarget = onCall<{ email: string }>(({data, auth}) => {
  * Cancels the elimination of the target of the current user.
  * @param {string} adminEmail the email of the admin canceling the elimination
  * @param {string} email the email of the user to cancel the elimination for
- * @param {Object} resolve
- * @param {Object} reject
+ * @param {function(void): void} resolve
+ * @param {function(unknown): void} reject
  * @return {void}
  */
 function cancelEliminateTarget(adminEmail: string, email: string, resolve: () => void, reject: (value: unknown) => void): void {
@@ -462,15 +439,10 @@ exports.newRound = onCall<{ randomize: boolean }>(({data, auth}) => {
 
 /**
  * Creates a new round with the surviving players and increments {@link round}.
- * @param {function(void):void} resolve the function to call to resolve the promise
+ * @param {function(NewRoundResult): void} resolve the function to call to resolve the promise
  * @param {boolean} randomize whether to randomize the order of the players
  */
-function newRound(resolve: (value: {
-  emails: string[],
-  game: {
-    [email: string]: { alive: boolean; name: string; targetEmail: string; wasAlive: boolean; eliminating: number }
-  }
-}) => void, randomize: boolean) {
+function newRound(resolve: (value: NewRoundResult) => void, randomize: boolean) {
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then(async (snapshot) => {
@@ -487,11 +459,7 @@ function newRound(resolve: (value: {
   });
 }
 
-exports.newGame = onCall<{
-  newGameName: string,
-  emailsAndNames: { [email: string]: string },
-  randomize: boolean
-}>(({data, auth}) => {
+exports.newGame = onCall<NewGame>(({data, auth}) => {
   return new Promise<void>((resolve, reject) => {
     if (!auth) {
       throw new HttpsError("unauthenticated", "only authenticated users can start a new game");
@@ -515,9 +483,9 @@ exports.newGame = onCall<{
  * Creates a new game with the given emails and names. Updates the active game and sets round to 1.
  * @param {Object.<string, Object>} data the emails and names of the players
  */
-async function newGame(data: { newGameName: string, emailsAndNames: { [email: string]: string }, randomize: boolean }) {
+async function newGame(data: NewGame) {
   const emails: string[] = Object.keys(data.emailsAndNames);
-  const names: { [email: string]: { name: string, alive: boolean, wasAlive: boolean } } = {};
+  const names: { [email: string]: PlayerWithoutTarget } = {};
   for (const email of emails) {
     names[email] = {name: data.emailsAndNames[email], alive: true, wasAlive: true};
   }
@@ -535,19 +503,17 @@ async function newGame(data: { newGameName: string, emailsAndNames: { [email: st
  * @param {CollectionReference} gameCollection the game collection
  * @param {number} round the round number
  * @param {string[]} emails the emails of the players
- * @param {Object.<string, {name: string, alive: boolean}>} names the names of the players
+ * @param {Object.<string, PlayerWithoutTarget>} names the names of the players
  * @param {boolean} randomize whether to randomize the order of the players
  */
 async function createNewRound(gameCollection: CollectionReference, round: number, emails: string[], names: {
-  [email: string]: { name: string, alive: boolean }
+  [email: string]: PlayerWithoutTarget
 }, randomize: boolean) {
   const roundDoc = gameCollection.doc("round" + round);
   if (randomize) {
     shuffleArray(emails);
   }
-  const game: {
-    [email: string]: { alive: boolean, name: string, targetEmail: string, wasAlive: boolean, eliminating: number }
-  } = {};
+  const game: Game = {};
   for (let i = 0; i < emails.length; i++) {
     const email = emails[i];
     const targetEmail = emails[(i + 1) % emails.length];
