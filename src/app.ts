@@ -6,7 +6,7 @@ import {getAnalytics} from "firebase/analytics";
 import {connectFunctionsEmulator, getFunctions, httpsCallable} from "firebase/functions";
 import {getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithRedirect, signOut} from "firebase/auth";
 import {connectFirestoreEmulator, doc, getFirestore, onSnapshot, Unsubscribe} from "firebase/firestore";
-import {NewRoundResult, PendingEliminations, QueryTargetResult} from "./types";
+import {NewRoundResult, PendingEliminations, QueryTargetResult} from "../functions/src/types";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
 const activeGameName = "name"; // The name of the document that stores the name of the active game
@@ -175,7 +175,7 @@ function queryAndHandleTarget() {
 /**
  * Updates the UI based on the given parameters.
  */
-function handleTarget({email, round, started, alive, targetEmail, targetName, eliminating, stats}: QueryTargetResult) {
+function handleTarget({email, round, started, alive, beingEliminated, targetEmail, targetName, eliminating, stats}: QueryTargetResult) {
   document.getElementById("signInTitle").style.display = "none";
   document.getElementById("loading").style.display = "none";
   //@ts-ignore
@@ -196,7 +196,7 @@ function handleTarget({email, round, started, alive, targetEmail, targetName, el
     document.getElementById("appeal").style.display = "none";
   } else {
     document.getElementById("alive").innerHTML = "You are " + (alive ? "alive" : "out");
-    if (alive) {
+    if (alive && !beingEliminated) {
       if (started) {
         document.getElementById("target").innerHTML = "Your target is " + targetName;
         document.getElementById("appeal").style.display = "none";

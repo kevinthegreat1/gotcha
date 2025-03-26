@@ -1,10 +1,11 @@
 export type PlayerWithoutTarget = {
-  alive: boolean,
   name: string,
+  alive: boolean,
   wasAlive: boolean
 }
 
 export type PlayerWithTarget = PlayerWithoutTarget & {
+  beingEliminated: number,
   targetEmail: string,
   eliminating: number
 }
@@ -22,6 +23,7 @@ export type QueryTargetResult = Target & {
   round: number,
   started: boolean,
   alive: boolean,
+  beingEliminated: number,
   targetName: string,
   eliminating: number,
   stats?: Stats

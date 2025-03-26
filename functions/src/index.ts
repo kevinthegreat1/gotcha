@@ -5,7 +5,7 @@ import {setGlobalOptions} from "firebase-functions/v2";
 import {log} from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import {CollectionReference, DocumentReference, FieldPath, Firestore} from "firebase-admin/firestore";
-import {Game, NewGame, NewRoundResult, PendingEliminations, PlayerWithoutTarget, PlayerWithTarget, QueryTargetResult, Stats, Target} from "../../src/types";
+import {Game, NewGame, NewRoundResult, PendingEliminations, PlayerWithoutTarget, PlayerWithTarget, QueryTargetResult, Stats, Target} from "./types";
 
 const activeGameNameCollection = "activeGame"; // The name of the collection that stores the name of the active game
 const activeGameName = "name"; // The name of the document that stores the name of the active game
@@ -109,6 +109,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
           round: round,
           started: started,
           alive: false,
+          beingEliminated: 0,
           targetEmail: "",
           targetName: "",
           eliminating: 0,
@@ -120,6 +121,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
           round: round,
           started: started,
           alive: false,
+          beingEliminated: 0,
           targetEmail: "",
           targetName: "",
           eliminating: 0,
@@ -136,6 +138,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
         round: round,
         started: started,
         alive: player.alive,
+        beingEliminated: player.beingEliminated,
         targetEmail: started ? targetEmail : "",
         targetName: started ? target.name : "",
         eliminating: player.eliminating,
@@ -147,6 +150,7 @@ function getTarget(gameName: string, round: number, roundDoc: DocumentReference,
         round: round,
         started: started,
         alive: player.alive,
+        beingEliminated: player.beingEliminated,
         targetEmail: started ? targetEmail : "",
         targetName: started ? target.name : "",
         eliminating: player.eliminating,
@@ -216,7 +220,7 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((roundDocSnapshot) => {
-      const game = roundDocSnapshot?.data()?.game;
+      const game: Game = roundDocSnapshot?.data()?.game;
       if (!game) {
         throw new HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
@@ -230,7 +234,7 @@ function eliminateTarget(email: string | undefined, resolve: () => void, reject:
       }
 
       log(`Player ${email} wants to eliminate their target`);
-      roundDoc.update(new FieldPath("game", email, "eliminating"), Date.now()).then(resolve);
+      roundDoc.update(new FieldPath("game", email, "eliminating"), Date.now(), new FieldPath("game", player.targetEmail, "beingEliminated"), Date.now()).then(resolve);
     });
   }).catch((error) => {
     log(error);
@@ -266,7 +270,7 @@ function getPendingEliminations(resolve: (value: PendingEliminations) => void, r
   getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
     roundDoc.get().then((roundDocSnapshot) => {
-      const game = roundDocSnapshot?.data()?.game;
+      const game: Game = roundDocSnapshot?.data()?.game;
       if (!game) {
         throw new HttpsError("not-found", `game '${gameName}' round ${round} game document is empty`);
       }
@@ -335,11 +339,7 @@ function confirmEliminateTarget(adminEmail: string, email: string, targetEmail: 
         throw new HttpsError("failed-precondition", `confirmation failed for admin ${adminEmail}: player ${email}'s current target ${targetEmail} does not match the requested elimination target ${result.targetEmail}, most likely the elimination has been confirmed by another admin`);
       }
       log(`Admin ${adminEmail} confirmed player ${email} eliminating their target ${targetEmail}`);
-      const eliminatingResetWrite = roundDoc.update(new FieldPath("game", email, "eliminating"), 0);
-      const eliminateWrite = roundDoc.update(new FieldPath("game", result.targetEmail, "alive"), false);
-      await eliminatingResetWrite;
-      await eliminateWrite;
-      resolve();
+      roundDoc.update(new FieldPath("game", email, "eliminating"), 0, new FieldPath("game", targetEmail, "beingEliminated"), 0, new FieldPath("game", result.targetEmail, "alive"), false).then(resolve);
     }, reject, false);
   }).catch((error) => {
     log(error);
@@ -375,10 +375,12 @@ exports.cancelEliminateTarget = onCall<{ email: string }>(({data, auth}) => {
  * @return {void}
  */
 function cancelEliminateTarget(adminEmail: string, email: string, resolve: () => void, reject: (value: unknown) => void): void {
-  getRound(firestore).then(({gameCollection, round}) => {
+  getRound(firestore).then(({gameName, gameCollection, round}) => {
     const roundDoc = gameCollection.doc("round" + round);
-    log(`Admin ${adminEmail} canceled player ${email} eliminating their target`);
-    roundDoc.update(new FieldPath("game", email, "eliminating"), 0).then(resolve);
+    getTarget(gameName, round, roundDoc, email, async (result: QueryTargetResult) => {
+      log(`Admin ${adminEmail} canceled player ${email} eliminating their target`);
+      roundDoc.update(new FieldPath("game", email, "eliminating"), 0, new FieldPath("game", result.targetEmail, "beingEliminated"), 0).then(resolve);
+    }, reject, false);
   }).catch((error) => {
     log(error);
     reject(error);
@@ -518,10 +520,11 @@ async function createNewRound(gameCollection: CollectionReference, round: number
     const email = emails[i];
     const targetEmail = emails[(i + 1) % emails.length];
     game[email] = {
-      alive: names[email].alive,
       name: names[email].name,
-      targetEmail: targetEmail,
+      alive: names[email].alive,
       wasAlive: names[email].alive,
+      beingEliminated: 0,
+      targetEmail: targetEmail,
       eliminating: 0,
     };
   }
