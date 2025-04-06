@@ -27,7 +27,7 @@ const firebaseConfig = {
 admin.initializeApp(firebaseConfig);
 const firestore = admin.firestore();
 
-setGlobalOptions({memory: "128MiB", maxInstances: 1});
+setGlobalOptions({memory: "256MiB", maxInstances: 1});
 
 /**
  * Gets the active game collection from the game name stored in the active game collection.
